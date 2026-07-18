@@ -6,7 +6,9 @@ from PyQt6.QtWidgets import (
     QFrame,
     QComboBox,
     QPushButton,
-    QHBoxLayout
+    QHBoxLayout,
+    QCheckBox
+    
 )
 
 from PyQt6.QtCore import Qt, QTimer
@@ -239,7 +241,11 @@ class MainWindow(QMainWindow):
         self.stop_button = QPushButton(
             "Stop"
         )
+        self.youtube_checkbox = QCheckBox(
+        "YouTube Opus Simulation"
+        )
 
+        self.youtube_checkbox.setChecked(False)
 
 
         setting_layout.addWidget(
@@ -249,7 +255,9 @@ class MainWindow(QMainWindow):
         setting_layout.addWidget(
             self.stop_button
         )
-
+        setting_layout.addWidget(
+        self.youtube_checkbox
+)
 
 
         self.start_button.clicked.connect(

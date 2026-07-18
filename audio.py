@@ -1,130 +1,101 @@
 import numpy as np
-from scipy.signal import resample_poly
 
-from effects import process
 from audio_state import audio_state
-from analyzer import get_spectrum
 
 
 
-def linear_to_db(value):
-    """
-    リニア値をdBFSへ変換
-    """
-
-    if value <= 1e-12:
-        return -120.0
-
-    return 20 * np.log10(value)
-
-
-
-def callback(indata, outdata, frames, time_info, status):
-    """
-    sounddevice コールバック
-    """
+def callback(
+    indata,
+    outdata,
+    frames,
+    time,
+    status
+):
 
     if status:
         print(status)
 
 
+    # 音をそのまま出力
+    outdata[:] = indata
 
-    # エフェクト処理
-    processed = process(
-        indata.copy()
+
+    # コピー
+    data = indata.copy()
+
+
+    # ステレオ → モノラル
+    mono = np.mean(
+        data,
+        axis=1
     )
 
 
-
-    # 最新音声を保存
-    audio_state.last_audio = (
-        processed.copy()
-    )
-
-
-
-    # ==========================
-    # FFT解析
-    # ==========================
-
-    freqs, spectrum = get_spectrum(
-        processed,
-        audio_state.sample_rate
-    )
-
-
-    # 振幅をdBへ変換
-    spectrum_db = 20 * np.log10(
-        spectrum + 1e-6
-    )
-
-
-    # -60dB～0dBを0～1へ変換
-    spectrum_db = np.clip(
-        (spectrum_db + 60) / 60,
-        0,
-        1
-    )
-
-
-    # GUI表示用へコピー
-
-    length = min(
-        len(audio_state.spectrum),
-        len(spectrum_db)
-    )
-
-
-    audio_state.spectrum[:] = 0
-
-
-    audio_state.spectrum[:length] = (
-        spectrum_db[:length]
-    )
-
-
-
-    # ==========================
-    # Peak / RMS計算
-    # ==========================
-
-    rms = np.sqrt(
+    # RMS計算
+    volume = np.sqrt(
         np.mean(
-            processed ** 2
+            mono ** 2
         )
     )
 
 
-    peak = np.max(
-        np.abs(processed)
-    )
-        # True Peak（現在はPeakと同じ値）
-    true_peak = peak
-    # True Peak (4x Oversampling)
-    oversampled = resample_poly(
-        processed,
-        4,
-        1,
-        axis=0
+    # dB変換
+    if volume > 0:
+        rms_db = 20 * np.log10(volume)
+    else:
+        rms_db = -60.0
+
+
+    # FFT
+    fft = np.abs(
+        np.fft.rfft(
+            mono
+        )
     )
 
+
+    # FFT正規化
+    if np.max(fft) > 0:
+
+        fft = fft / np.max(fft)
+
+
+
+    # AudioStateへ保存
+
+        # AudioStateへ保存
+
+    audio_state.rms_db = rms_db
+
+    audio_state.peak_db = rms_db
+
+
+    # True Peak計算
     true_peak = np.max(
-        np.abs(oversampled)
+        np.abs(data)
     )
 
-    audio_state.rms_db = linear_to_db(
-        rms
-    )
+    if true_peak > 0:
+        true_peak_db = 20 * np.log10(true_peak)
+    else:
+        true_peak_db = -60.0
 
 
-    audio_state.peak_db = linear_to_db(
-    true_peak
-)
-    audio_state.true_peak_db = linear_to_db(
-        true_peak
-    )
+    audio_state.true_peak_db = true_peak_db
 
 
-    # スピーカー出力
+    audio_state.last_audio = data
 
-    outdata[:] = processed
+
+        # Spectrum用512ポイントへ縮小
+
+    if len(fft) >= 512:
+
+        audio_state.spectrum[:] = fft[:512]
+
+    else:
+
+        audio_state.spectrum[:] = 0
+
+        audio_state.spectrum[:len(fft)] = fft
+    
