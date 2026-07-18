@@ -207,10 +207,7 @@ window.show()
 # Auto Start
 # ==========================
 
-QTimer.singleShot(
-    500,
-    window.auto_start_check
-)
+
 
 
 
