@@ -321,7 +321,10 @@ class MainWindow(QMainWindow):
         self.timer.start(
             16
         )
-
+        QTimer.singleShot(
+            500,
+            self.start_audio
+        )
 
 
     def load_devices(self):
