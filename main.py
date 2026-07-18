@@ -26,8 +26,6 @@ def start_stream(
 
     try:
 
-        # 既存ストリーム停止
-
         if stream is not None:
 
             stream.stop()
@@ -113,7 +111,6 @@ def stop_stream():
     global stream
 
 
-
     if stream is not None:
 
         try:
@@ -163,8 +160,13 @@ window.show()
 
 
 
-
-
 try:
 
-   
+    sys.exit(
+        app.exec()
+    )
+
+
+finally:
+
+    stop_stream()
