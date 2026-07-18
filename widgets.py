@@ -34,8 +34,6 @@ class AudioMeter(QWidget):
 
 
 
-        # 背景
-
         painter.setBrush(
             QColor("#333333")
         )
@@ -48,8 +46,6 @@ class AudioMeter(QWidget):
         )
 
 
-
-        # dBを0〜1へ変換
 
         ratio = (
             self.level + 60
@@ -66,8 +62,6 @@ class AudioMeter(QWidget):
 
 
 
-        # メーター
-
         painter.setBrush(
             QColor("#00ff66")
         )
@@ -81,8 +75,6 @@ class AudioMeter(QWidget):
         )
 
 
-
-        # 文字
 
         painter.setPen(
             Qt.GlobalColor.white
@@ -114,6 +106,22 @@ class SpectrumWidget(QWidget):
         )
 
 
+        # 表示用スムージングデータ
+
+        self.display = np.zeros(
+            512,
+            dtype=np.float32
+        )
+
+
+        # ピーク保持
+
+        self.peak = np.zeros(
+            512,
+            dtype=np.float32
+        )
+
+
         self.setMinimumHeight(
             220
         )
@@ -122,7 +130,30 @@ class SpectrumWidget(QWidget):
 
     def set_spectrum(self, spectrum):
 
+        if len(spectrum) != len(self.spectrum):
+            return
+
+
         self.spectrum = spectrum.copy()
+
+
+        # 上昇は速く
+        # 下降はゆっくり
+
+        self.display = (
+            self.display * 0.75
+            +
+            self.spectrum * 0.25
+        )
+
+
+        # ピーク更新
+
+        self.peak = np.maximum(
+            self.peak * 0.96,
+            self.display
+        )
+
 
         self.update()
 
@@ -153,13 +184,6 @@ class SpectrumWidget(QWidget):
 
 
 
-        if len(self.spectrum) == 0:
-            return
-
-
-
-        # タイトル
-
         painter.setPen(
             Qt.GlobalColor.white
         )
@@ -172,11 +196,9 @@ class SpectrumWidget(QWidget):
 
 
 
-        # 棒グラフ設定
-
         bars = 64
 
-        step = len(self.spectrum) // bars
+        step = len(self.display) // bars
 
 
         bar_width = max(
@@ -189,21 +211,34 @@ class SpectrumWidget(QWidget):
         for i in range(bars):
 
             start = i * step
+
             end = start + step
 
 
             value = np.max(
-                self.spectrum[start:end]
+                self.display[start:end]
             )
+
+
+            peak_value = np.max(
+                self.peak[start:end]
+            )
+
 
 
             bar_height = int(
-                value * (height - 40)
+                value * (height - 50)
             )
 
 
-            x = i * (
-                width / bars
+            peak_height = int(
+                peak_value * (height - 50)
+            )
+
+
+
+            x = int(
+                i * width / bars
             )
 
 
@@ -211,13 +246,15 @@ class SpectrumWidget(QWidget):
 
 
 
+            # 棒
+
             painter.setBrush(
                 QColor("#00ff66")
             )
 
 
             painter.drawRect(
-                int(x),
+                x,
                 y,
                 bar_width,
                 bar_height
@@ -225,7 +262,23 @@ class SpectrumWidget(QWidget):
 
 
 
-        # 周波数目盛り
+            # ピーク線
+
+            painter.setBrush(
+                QColor("#ffffff")
+            )
+
+
+            painter.drawRect(
+                x,
+                height - peak_height - 2,
+                bar_width,
+                2
+            )
+
+
+
+        # 周波数表示
 
         painter.setPen(
             QColor("#aaaaaa")
