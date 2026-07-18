@@ -139,24 +139,20 @@ class SpectrumWidget(QWidget):
 
         super().__init__()
 
-
         self.spectrum = np.zeros(
             512,
             dtype=np.float32
         )
-
 
         self.display = np.zeros(
             512,
             dtype=np.float32
         )
 
-
         self.peak = np.zeros(
             512,
             dtype=np.float32
         )
-
 
         self.setMinimumHeight(
             250
@@ -166,7 +162,7 @@ class SpectrumWidget(QWidget):
 
     def set_spectrum(self, spectrum):
 
-        if len(spectrum) != len(self.spectrum):
+        if len(spectrum) != 512:
             return
 
 
@@ -174,19 +170,16 @@ class SpectrumWidget(QWidget):
 
 
         # スムージング
-
         self.display = (
-            self.display * 0.75
+            self.display * 0.8
             +
-            self.spectrum * 0.25
+            self.spectrum * 0.2
         )
 
 
-
         # ピーク保持
-
         self.peak = np.maximum(
-            self.peak * 0.96,
+            self.peak * 0.97,
             self.display
         )
 
@@ -198,7 +191,6 @@ class SpectrumWidget(QWidget):
     def paintEvent(self, event):
 
         painter = QPainter(self)
-
 
         width = self.width()
         height = self.height()
@@ -220,18 +212,31 @@ class SpectrumWidget(QWidget):
 
 
 
-        # グリッド
+        # dBグリッド
 
         painter.setPen(
             QColor("#303030")
         )
 
 
-        for y in range(
-            40,
-            height - 30,
-            40
-        ):
+        db_lines = [
+            -60,
+            -40,
+            -20,
+            -10,
+            -3
+        ]
+
+
+        for db in db_lines:
+
+            y = int(
+                height - 35 -
+                ((db + 60) / 60)
+                *
+                (height - 60)
+            )
+
 
             painter.drawLine(
                 0,
@@ -242,22 +247,23 @@ class SpectrumWidget(QWidget):
 
 
 
-        for x in range(
-            0,
-            width,
-            width // 8
-        ):
-
-            painter.drawLine(
-                x,
-                25,
-                x,
-                height - 30
+            painter.setPen(
+                QColor("#aaaaaa")
             )
 
 
+            painter.drawText(
+                5,
+                y - 3,
+                f"{db} dB"
+            )
 
-        # タイトル
+
+            painter.setPen(
+                QColor("#303030")
+            )
+
+
 
         painter.setPen(
             Qt.GlobalColor.white
@@ -274,61 +280,81 @@ class SpectrumWidget(QWidget):
 
         bars = 64
 
-        step = len(self.display) // bars
-
-
-        bar_width = max(
-            3,
-            width // bars - 3
-        )
-
-
 
         for i in range(bars):
 
-            start = i * step
-
-            end = start + step
-
-
-            value = np.max(
-                self.display[start:end]
+            index = int(
+                (i / bars)
+                *
+                len(self.display)
             )
 
 
-            peak_value = np.max(
-                self.peak[start:end]
+            value = self.display[index]
+
+
+            peak = self.peak[index]
+
+
+
+            # dB変換
+
+            if value > 0:
+
+                db = 20 * np.log10(value)
+
+            else:
+
+                db = -60
+
+
+
+            db = max(
+                -60,
+                min(
+                    0,
+                    db
+                )
             )
+
+
+
+            ratio = (
+                db + 60
+            ) / 60
 
 
 
             bar_height = int(
-                value * (height - 60)
-            )
-
-
-            peak_height = int(
-                peak_value * (height - 60)
+                ratio *
+                (height - 60)
             )
 
 
 
             x = int(
-                i * width / bars
+                i *
+                width /
+                bars
             )
 
 
-            y = height - bar_height - 25
+            bar_width = max(
+                3,
+                width // bars - 3
+            )
 
 
 
-            # 高さによる色変化
+            y = height - bar_height - 30
 
-            if value > 0.75:
+
+
+            if db > -6:
 
                 color = QColor("#ff3333")
 
-            elif value > 0.45:
+            elif db > -20:
 
                 color = QColor("#ffd633")
 
@@ -352,22 +378,6 @@ class SpectrumWidget(QWidget):
 
 
 
-            # ピーク表示
-
-            painter.setBrush(
-                QColor("#ffffff")
-            )
-
-
-            painter.drawRect(
-                x,
-                height - peak_height - 27,
-                bar_width,
-                2
-            )
-
-
-
         # 周波数表示
 
         painter.setPen(
@@ -377,20 +387,20 @@ class SpectrumWidget(QWidget):
 
         painter.drawText(
             10,
-            height - 8,
+            height - 10,
             "20Hz"
         )
 
 
         painter.drawText(
-            width // 2 - 25,
-            height - 8,
+            width // 2 - 20,
+            height - 10,
             "1kHz"
         )
 
 
         painter.drawText(
             width - 60,
-            height - 8,
+            height - 10,
             "20kHz"
-        )
+        )        

@@ -1,5 +1,7 @@
 import numpy as np
 
+from scipy.signal import resample_poly
+
 from audio_state import audio_state
 
 
@@ -61,19 +63,47 @@ def callback(
 
 
 
-    # AudioStateへ保存
-
-        # AudioStateへ保存
+    # RMS保存
 
     audio_state.rms_db = rms_db
 
-    audio_state.peak_db = rms_db
 
+    # Peak計算
 
-    # True Peak計算
-    true_peak = np.max(
+    peak = np.max(
         np.abs(data)
     )
+
+
+    if peak > 0:
+        peak_db = 20 * np.log10(peak)
+    else:
+        peak_db = -60.0
+
+
+    audio_state.peak_db = peak_db
+
+
+    # True Peak計算（4倍オーバーサンプリング）
+
+    true_peak = 0.0
+
+    for ch in range(data.shape[1]):
+
+        oversampled = resample_poly(
+            data[:, ch],
+            4,
+            1
+        )
+
+        peak = np.max(
+            np.abs(oversampled)
+        )
+
+        if peak > true_peak:
+            true_peak = peak
+
+
 
     if true_peak > 0:
         true_peak_db = 20 * np.log10(true_peak)
@@ -83,11 +113,12 @@ def callback(
 
     audio_state.true_peak_db = true_peak_db
 
+   
 
     audio_state.last_audio = data
 
 
-        # Spectrum用512ポイントへ縮小
+    # Spectrum用512ポイントへ縮小
 
     if len(fft) >= 512:
 
