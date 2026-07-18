@@ -42,10 +42,12 @@ class MainWindow(QMainWindow):
             "Stream Audio Monitor"
         )
 
+
         self.resize(
-            900,
-            700
+            1000,
+            750
         )
+
 
 
         self.setStyleSheet(
@@ -122,17 +124,18 @@ class MainWindow(QMainWindow):
 
 
 
-        # ======================
-        # デバイス選択
-        # ======================
+        # ==========================
+        # 設定パネル
+        # ==========================
 
-        device_frame = QFrame()
+        setting_frame = QFrame()
 
-        device_layout = QHBoxLayout()
+        setting_layout = QHBoxLayout()
 
-        device_frame.setLayout(
-            device_layout
+        setting_frame.setLayout(
+            setting_layout
         )
+
 
 
         self.input_box = QComboBox()
@@ -140,30 +143,90 @@ class MainWindow(QMainWindow):
         self.output_box = QComboBox()
 
 
+        self.rate_box = QComboBox()
+
+        self.buffer_box = QComboBox()
+
+
+
         self.input_devices = []
 
         self.output_devices = []
+
+
+
+        self.rate_values = [
+            44100,
+            48000,
+            96000
+        ]
+
+
+        for value in self.rate_values:
+
+            self.rate_box.addItem(
+                f"{value} Hz"
+            )
+
+
+
+        self.buffer_values = [
+            256,
+            512,
+            1024,
+            2048,
+            4096
+        ]
+
+
+        for value in self.buffer_values:
+
+            self.buffer_box.addItem(
+                str(value)
+            )
+
 
 
         self.load_devices()
 
 
 
-        device_layout.addWidget(
+        setting_layout.addWidget(
             QLabel("Input")
         )
 
-        device_layout.addWidget(
+        setting_layout.addWidget(
             self.input_box
         )
 
 
-        device_layout.addWidget(
+
+        setting_layout.addWidget(
             QLabel("Output")
         )
 
-        device_layout.addWidget(
+        setting_layout.addWidget(
             self.output_box
+        )
+
+
+
+        setting_layout.addWidget(
+            QLabel("Rate")
+        )
+
+        setting_layout.addWidget(
+            self.rate_box
+        )
+
+
+
+        setting_layout.addWidget(
+            QLabel("Buffer")
+        )
+
+        setting_layout.addWidget(
+            self.buffer_box
         )
 
 
@@ -172,16 +235,18 @@ class MainWindow(QMainWindow):
             "Start"
         )
 
+
         self.stop_button = QPushButton(
             "Stop"
         )
 
 
-        device_layout.addWidget(
+
+        setting_layout.addWidget(
             self.start_button
         )
 
-        device_layout.addWidget(
+        setting_layout.addWidget(
             self.stop_button
         )
 
@@ -199,14 +264,15 @@ class MainWindow(QMainWindow):
 
 
         layout.addWidget(
-            device_frame
+            setting_frame
         )
 
 
 
-        # ======================
-        # メーター
-        # ======================
+        # ==========================
+        # Meter
+        # ==========================
+
 
         self.peak_meter = AudioMeter(
             "Peak"
@@ -215,7 +281,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(
             self.peak_meter
         )
-
 
 
         self.rms_meter = AudioMeter(
@@ -228,12 +293,7 @@ class MainWindow(QMainWindow):
 
 
 
-        # ======================
-        # Spectrum
-        # ======================
-
         self.spectrum = SpectrumWidget()
-
 
         layout.addWidget(
             self.spectrum
@@ -244,7 +304,6 @@ class MainWindow(QMainWindow):
         self.status = QLabel(
             "Status : Ready"
         )
-
 
         layout.addWidget(
             self.status
@@ -277,8 +336,6 @@ class MainWindow(QMainWindow):
 
 
 
-            # 入力デバイス
-
             if device["max_input_channels"] > 0:
 
                 self.input_devices.append(
@@ -291,8 +348,6 @@ class MainWindow(QMainWindow):
                 )
 
 
-
-            # 出力デバイス
 
             if device["max_output_channels"] > 0:
 
@@ -307,8 +362,6 @@ class MainWindow(QMainWindow):
 
 
 
-        # 保存済み設定を読み込み
-
         saved = load_settings()
 
 
@@ -317,27 +370,45 @@ class MainWindow(QMainWindow):
 
             if saved["input_device"] in self.input_devices:
 
-                index = self.input_devices.index(
-                    saved["input_device"]
-                )
-
-
                 self.input_box.setCurrentIndex(
-                    index
+                    self.input_devices.index(
+                        saved["input_device"]
+                    )
                 )
 
 
 
             if saved["output_device"] in self.output_devices:
 
-                index = self.output_devices.index(
-                    saved["output_device"]
-                )
-
-
                 self.output_box.setCurrentIndex(
-                    index
+                    self.output_devices.index(
+                        saved["output_device"]
+                    )
                 )
+
+
+
+            if "samplerate" in saved:
+
+                if saved["samplerate"] in self.rate_values:
+
+                    self.rate_box.setCurrentIndex(
+                        self.rate_values.index(
+                            saved["samplerate"]
+                        )
+                    )
+
+
+
+            if "blocksize" in saved:
+
+                if saved["blocksize"] in self.buffer_values:
+
+                    self.buffer_box.setCurrentIndex(
+                        self.buffer_values.index(
+                            saved["blocksize"]
+                        )
+                    )
 
 
 
@@ -353,34 +424,42 @@ class MainWindow(QMainWindow):
         ]
 
 
-
-        print(
-            "Input:",
-            input_device
-        )
+        samplerate = self.rate_values[
+            self.rate_box.currentIndex()
+        ]
 
 
-        print(
-            "Output:",
-            output_device
-        )
+        blocksize = self.buffer_values[
+            self.buffer_box.currentIndex()
+        ]
 
 
 
-        # 設定保存
+        print("Input:", input_device)
+
+        print("Output:", output_device)
+
+        print("Rate:", samplerate)
+
+        print("Buffer:", blocksize)
+
+
 
         save_settings(
             input_device,
-            output_device
+            output_device,
+            samplerate,
+            blocksize
         )
 
 
 
         self.start_stream(
             input_device,
-            output_device
+            output_device,
+            samplerate,
+            blocksize
         )
-
 
 
         self.status.setText(
