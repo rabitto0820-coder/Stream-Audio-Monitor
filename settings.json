@@ -1,4 +1,6 @@
 {
     "input_device": 23,
-    "output_device": 19
+    "output_device": 19,
+    "samplerate": 44100,
+    "blocksize": 2048
 }

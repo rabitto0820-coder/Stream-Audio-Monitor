@@ -2,7 +2,7 @@ import sys
 
 import sounddevice as sd
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from audio import callback
 
@@ -24,66 +24,60 @@ def start_stream(
     global stream
 
 
+    try:
 
-    # 既存Stream停止
+        if stream is not None:
 
-    if stream is not None:
+            stream.stop()
 
-        stream.stop()
-
-        stream.close()
-
-
-
-    print("====================")
-
-    print("Audio Start")
-
-    print(
-        "Input:",
-        input_device
-    )
-
-    print(
-        "Output:",
-        output_device
-    )
-
-    print(
-        "Sample Rate:",
-        samplerate
-    )
-
-    print(
-        "Buffer:",
-        blocksize
-    )
-
-    print("====================")
+            stream.close()
 
 
 
-    stream = sd.Stream(
-
-        device=(
-            input_device,
-            output_device
-        ),
-
-        samplerate=samplerate,
-
-        channels=2,
-
-        blocksize=blocksize,
-
-        latency="low",
-
-        callback=callback
-
-    )
+        print("====================")
+        print("Audio Start")
+        print("Input:", input_device)
+        print("Output:", output_device)
+        print("Sample Rate:", samplerate)
+        print("Buffer:", blocksize)
+        print("====================")
 
 
-    stream.start()
+
+        stream = sd.Stream(
+
+            device=(
+                input_device,
+                output_device
+            ),
+
+            samplerate=samplerate,
+
+            channels=(2, 2),
+
+            blocksize=blocksize,
+
+            latency="low",
+
+            callback=callback
+
+        )
+
+
+        stream.start()
+
+
+
+    except Exception as e:
+
+        print("====================")
+        print("AUDIO ERROR")
+        print(e)
+        print("====================")
+
+
+
+        stream = None
 
 
 
@@ -92,7 +86,6 @@ def start_stream(
 def stop_stream():
 
     global stream
-
 
 
     if stream is not None:
@@ -108,14 +101,9 @@ def stop_stream():
 
 
 print("======================================")
-
 print(" Stream Audio Monitor")
-
 print("======================================")
-
 print("Version 1.0")
-
-
 
 
 
@@ -131,10 +119,7 @@ window = MainWindow(
 )
 
 
-
 window.show()
-
-
 
 
 
