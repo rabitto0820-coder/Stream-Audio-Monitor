@@ -1,47 +1,65 @@
-import tkinter as tk
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtGui import QPainter, QColor
+from PyQt6.QtCore import Qt
 
 
-class LevelMeter(tk.Canvas):
-    def __init__(self, parent, width=300, height=30):
-        super().__init__(
-            parent,
-            width=width,
-            height=height,
-            bg="black",
-            highlightthickness=0
-        )
+class AudioMeter(QWidget):
 
-        self.width = width
-        self.height = height
-        self.level = 0
+    def __init__(self, name):
+        super().__init__()
 
-        self.draw_meter()
+        self.name = name
+        self.level = -60
+
+        self.setMinimumHeight(50)
 
 
     def set_level(self, value):
-        self.level = max(0, min(1, value))
-        self.draw_meter()
+
+        self.level = value
+        self.update()
 
 
-    def draw_meter(self):
-        self.delete("all")
+    def paintEvent(self, event):
 
-        fill_width = int(self.width * self.level)
+        painter = QPainter(self)
 
-        self.create_rectangle(
+        width = self.width()
+        height = self.height()
+
+
+        # 背景
+        painter.setBrush(QColor("#333333"))
+        painter.drawRect(
             0,
             0,
-            self.width,
-            self.height,
-            fill="gray20",
-            outline=""
+            width,
+            height
         )
 
-        self.create_rectangle(
+
+        # -60dB～0dBを0～1へ変換
+        ratio = (self.level + 60) / 60
+
+        ratio = max(0, min(1, ratio))
+
+
+        # メーター
+        painter.setBrush(QColor("#00ff66"))
+
+        painter.drawRect(
             0,
             0,
-            fill_width,
-            self.height,
-            fill="lime",
-            outline=""
+            int(width * ratio),
+            height
+        )
+
+
+        # 文字
+        painter.setPen(Qt.GlobalColor.white)
+
+        painter.drawText(
+            10,
+            30,
+            f"{self.name}: {self.level:.1f} dB"
         )
