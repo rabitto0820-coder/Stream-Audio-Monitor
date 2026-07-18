@@ -16,6 +16,11 @@ import sounddevice as sd
 from widgets import AudioMeter, SpectrumWidget
 from audio_state import audio_state
 
+from settings import (
+    save_settings,
+    load_settings
+)
+
 
 
 class MainWindow(QMainWindow):
@@ -130,17 +135,14 @@ class MainWindow(QMainWindow):
         )
 
 
-
         self.input_box = QComboBox()
 
         self.output_box = QComboBox()
 
 
-
         self.input_devices = []
 
         self.output_devices = []
-
 
 
         self.load_devices()
@@ -189,6 +191,7 @@ class MainWindow(QMainWindow):
             self.start_audio
         )
 
+
         self.stop_button.clicked.connect(
             self.stop_audio
         )
@@ -231,6 +234,7 @@ class MainWindow(QMainWindow):
 
         self.spectrum = SpectrumWidget()
 
+
         layout.addWidget(
             self.spectrum
         )
@@ -240,6 +244,7 @@ class MainWindow(QMainWindow):
         self.status = QLabel(
             "Status : Ready"
         )
+
 
         layout.addWidget(
             self.status
@@ -253,6 +258,7 @@ class MainWindow(QMainWindow):
             self.update_gui
         )
 
+
         self.timer.start(
             16
         )
@@ -262,6 +268,7 @@ class MainWindow(QMainWindow):
     def load_devices(self):
 
         devices = sd.query_devices()
+
 
 
         for index, device in enumerate(devices):
@@ -300,16 +307,41 @@ class MainWindow(QMainWindow):
 
 
 
+        # 保存済み設定を読み込み
+
+        saved = load_settings()
+
+
+        if saved:
+
+
+            if saved["input_device"] in self.input_devices:
+
+                index = self.input_devices.index(
+                    saved["input_device"]
+                )
+
+
+                self.input_box.setCurrentIndex(
+                    index
+                )
+
+
+
+            if saved["output_device"] in self.output_devices:
+
+                index = self.output_devices.index(
+                    saved["output_device"]
+                )
+
+
+                self.output_box.setCurrentIndex(
+                    index
+                )
+
+
+
     def start_audio(self):
-
-        if len(self.input_devices) == 0:
-            return
-
-
-        if len(self.output_devices) == 0:
-            return
-
-
 
         input_device = self.input_devices[
             self.input_box.currentIndex()
@@ -327,8 +359,18 @@ class MainWindow(QMainWindow):
             input_device
         )
 
+
         print(
             "Output:",
+            output_device
+        )
+
+
+
+        # 設定保存
+
+        save_settings(
+            input_device,
             output_device
         )
 
