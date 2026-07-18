@@ -170,7 +170,6 @@ class MainWindow(QMainWindow):
             "Start"
         )
 
-
         self.stop_button = QPushButton(
             "Stop"
         )
@@ -190,7 +189,6 @@ class MainWindow(QMainWindow):
             self.start_audio
         )
 
-
         self.stop_button.clicked.connect(
             self.stop_audio
         )
@@ -206,7 +204,6 @@ class MainWindow(QMainWindow):
         # ======================
         # メーター
         # ======================
-
 
         self.peak_meter = AudioMeter(
             "Peak"
@@ -267,12 +264,13 @@ class MainWindow(QMainWindow):
         devices = sd.query_devices()
 
 
-
         for index, device in enumerate(devices):
 
             name = device["name"]
 
 
+
+            # 入力デバイス
 
             if device["max_input_channels"] > 0:
 
@@ -280,11 +278,14 @@ class MainWindow(QMainWindow):
                     index
                 )
 
+
                 self.input_box.addItem(
-                    name
+                    f"{index} : {name}"
                 )
 
 
+
+            # 出力デバイス
 
             if device["max_output_channels"] > 0:
 
@@ -292,13 +293,23 @@ class MainWindow(QMainWindow):
                     index
                 )
 
+
                 self.output_box.addItem(
-                    name
+                    f"{index} : {name}"
                 )
 
 
 
     def start_audio(self):
+
+        if len(self.input_devices) == 0:
+            return
+
+
+        if len(self.output_devices) == 0:
+            return
+
+
 
         input_device = self.input_devices[
             self.input_box.currentIndex()
@@ -310,10 +321,24 @@ class MainWindow(QMainWindow):
         ]
 
 
+
+        print(
+            "Input:",
+            input_device
+        )
+
+        print(
+            "Output:",
+            output_device
+        )
+
+
+
         self.start_stream(
             input_device,
             output_device
         )
+
 
 
         self.status.setText(
