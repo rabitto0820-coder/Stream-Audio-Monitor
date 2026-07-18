@@ -4,9 +4,14 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QFrame,
+    QComboBox,
+    QPushButton,
+    QHBoxLayout
 )
 
 from PyQt6.QtCore import Qt, QTimer
+
+import sounddevice as sd
 
 from widgets import AudioMeter, SpectrumWidget
 from audio_state import audio_state
@@ -15,8 +20,17 @@ from audio_state import audio_state
 
 class MainWindow(QMainWindow):
 
-    def __init__(self):
+    def __init__(
+        self,
+        start_stream,
+        stop_stream
+    ):
+
         super().__init__()
+
+
+        self.start_stream = start_stream
+        self.stop_stream = stop_stream
 
 
         self.setWindowTitle(
@@ -25,11 +39,12 @@ class MainWindow(QMainWindow):
 
         self.resize(
             900,
-            600
+            700
         )
 
 
-        self.setStyleSheet("""
+        self.setStyleSheet(
+            """
             QMainWindow{
                 background:#202124;
             }
@@ -39,11 +54,24 @@ class MainWindow(QMainWindow):
                 font-size:12pt;
             }
 
+            QComboBox{
+                background:#333333;
+                color:white;
+                padding:5px;
+            }
+
+            QPushButton{
+                background:#333333;
+                color:white;
+                padding:8px;
+            }
+
             QFrame{
                 background:#2b2b2b;
                 border-radius:8px;
             }
-        """)
+            """
+        )
 
 
 
@@ -66,8 +94,6 @@ class MainWindow(QMainWindow):
 
 
 
-        # タイトル
-
         title = QLabel(
             "🎧 Stream Audio Monitor"
         )
@@ -76,10 +102,14 @@ class MainWindow(QMainWindow):
             Qt.AlignmentFlag.AlignCenter
         )
 
-        title.setStyleSheet("""
+
+        title.setStyleSheet(
+            """
             font-size:22pt;
             font-weight:bold;
-        """)
+            """
+        )
+
 
         layout.addWidget(
             title
@@ -87,7 +117,96 @@ class MainWindow(QMainWindow):
 
 
 
-        # Peak
+        # ======================
+        # デバイス選択
+        # ======================
+
+        device_frame = QFrame()
+
+        device_layout = QHBoxLayout()
+
+        device_frame.setLayout(
+            device_layout
+        )
+
+
+
+        self.input_box = QComboBox()
+
+        self.output_box = QComboBox()
+
+
+
+        self.input_devices = []
+
+        self.output_devices = []
+
+
+
+        self.load_devices()
+
+
+
+        device_layout.addWidget(
+            QLabel("Input")
+        )
+
+        device_layout.addWidget(
+            self.input_box
+        )
+
+
+        device_layout.addWidget(
+            QLabel("Output")
+        )
+
+        device_layout.addWidget(
+            self.output_box
+        )
+
+
+
+        self.start_button = QPushButton(
+            "Start"
+        )
+
+
+        self.stop_button = QPushButton(
+            "Stop"
+        )
+
+
+        device_layout.addWidget(
+            self.start_button
+        )
+
+        device_layout.addWidget(
+            self.stop_button
+        )
+
+
+
+        self.start_button.clicked.connect(
+            self.start_audio
+        )
+
+
+        self.stop_button.clicked.connect(
+            self.stop_audio
+        )
+
+
+
+        layout.addWidget(
+            device_frame
+        )
+
+
+
+        # ======================
+        # メーター
+        # ======================
+
 
         self.peak_meter = AudioMeter(
             "Peak"
@@ -99,8 +218,6 @@ class MainWindow(QMainWindow):
 
 
 
-        # RMS
-
         self.rms_meter = AudioMeter(
             "RMS"
         )
@@ -111,34 +228,20 @@ class MainWindow(QMainWindow):
 
 
 
-        # Spectrumエリア
+        # ======================
+        # Spectrum
+        # ======================
 
-        spectrum = QFrame()
-
-        spectrum_layout = QVBoxLayout()
-
-        spectrum.setLayout(
-            spectrum_layout
-        )
-
-
-        self.spectrum_widget = SpectrumWidget()
-
-        spectrum_layout.addWidget(
-            self.spectrum_widget
-        )
-
+        self.spectrum = SpectrumWidget()
 
         layout.addWidget(
-            spectrum
+            self.spectrum
         )
 
 
 
-        # Status
-
         self.status = QLabel(
-            "Status : Running"
+            "Status : Ready"
         )
 
         layout.addWidget(
@@ -146,8 +249,6 @@ class MainWindow(QMainWindow):
         )
 
 
-
-        # 更新タイマー
 
         self.timer = QTimer()
 
@@ -161,24 +262,89 @@ class MainWindow(QMainWindow):
 
 
 
-    def update_gui(self):
+    def load_devices(self):
 
-        # Peak表示
+        devices = sd.query_devices()
+
+
+
+        for index, device in enumerate(devices):
+
+            name = device["name"]
+
+
+
+            if device["max_input_channels"] > 0:
+
+                self.input_devices.append(
+                    index
+                )
+
+                self.input_box.addItem(
+                    name
+                )
+
+
+
+            if device["max_output_channels"] > 0:
+
+                self.output_devices.append(
+                    index
+                )
+
+                self.output_box.addItem(
+                    name
+                )
+
+
+
+    def start_audio(self):
+
+        input_device = self.input_devices[
+            self.input_box.currentIndex()
+        ]
+
+
+        output_device = self.output_devices[
+            self.output_box.currentIndex()
+        ]
+
+
+        self.start_stream(
+            input_device,
+            output_device
+        )
+
+
+        self.status.setText(
+            "Status : Running"
+        )
+
+
+
+    def stop_audio(self):
+
+        self.stop_stream()
+
+
+        self.status.setText(
+            "Status : Stopped"
+        )
+
+
+
+    def update_gui(self):
 
         self.peak_meter.set_level(
             audio_state.peak_db
         )
 
 
-        # RMS表示
-
         self.rms_meter.set_level(
             audio_state.rms_db
         )
 
 
-        # FFT Spectrum表示
-
-        self.spectrum_widget.set_spectrum(
+        self.spectrum.set_spectrum(
             audio_state.spectrum
         )
