@@ -1,14 +1,7 @@
 import numpy as np
 
 from effects import process
-
-
-# ==========================
-# GUI共有データ
-# ==========================
-
-current_peak_db = -60.0
-current_rms_db = -60.0
+from audio_state import audio_state
 
 
 def linear_to_db(value):
@@ -27,25 +20,21 @@ def callback(indata, outdata, frames, time_info, status):
     sounddevice コールバック
     """
 
-    global current_peak_db
-    global current_rms_db
-
     if status:
         print(status)
 
     # エフェクト処理
-    processed = process(indata)
+    processed = process(indata.copy())
 
-    # Peak/RMS計算
+    # GUI・FFT用に最新の音声を保存
+    audio_state.last_audio = processed.copy()
+
+    # Peak / RMS 計算
     rms = np.sqrt(np.mean(processed ** 2))
     peak = np.max(np.abs(processed))
 
-    rms_db = linear_to_db(rms)
-    peak_db = linear_to_db(peak)
+    audio_state.rms_db = linear_to_db(rms)
+    audio_state.peak_db = linear_to_db(peak)
 
-    # GUIへ渡す
-    current_peak_db = peak_db
-    current_rms_db = rms_db
-
-    # 出力
+    # スピーカーへ出力
     outdata[:] = processed

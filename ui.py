@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import Qt, QTimer
 
-import audio
 from widgets import AudioMeter
+from audio_state import audio_state
 
 
 class MainWindow(QMainWindow):
@@ -37,15 +37,19 @@ class MainWindow(QMainWindow):
         """)
 
         central = QWidget()
+
         self.setCentralWidget(central)
 
         layout = QVBoxLayout()
+
         layout.setSpacing(15)
 
         central.setLayout(layout)
 
         title = QLabel("🎧 Stream Audio Monitor")
+
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         title.setStyleSheet("""
             font-size:22pt;
             font-weight:bold;
@@ -54,24 +58,27 @@ class MainWindow(QMainWindow):
         layout.addWidget(title)
 
         self.peak_meter = AudioMeter("Peak")
+
         layout.addWidget(self.peak_meter)
 
         self.rms_meter = AudioMeter("RMS")
+
         layout.addWidget(self.rms_meter)
 
-        spectrum_frame = QFrame()
+        spectrum = QFrame()
 
         spectrum_layout = QVBoxLayout()
 
-        spectrum_frame.setLayout(spectrum_layout)
+        spectrum.setLayout(spectrum_layout)
 
         spectrum_layout.addWidget(
-            QLabel("Spectrum Analyzer (Coming Soon)")
+            QLabel("Spectrum Analyzer (Next Version)")
         )
 
-        layout.addWidget(spectrum_frame)
+        layout.addWidget(spectrum)
 
         self.status = QLabel("Status : Running")
+
         layout.addWidget(self.status)
 
         self.timer = QTimer()
@@ -82,6 +89,6 @@ class MainWindow(QMainWindow):
 
     def update_gui(self):
 
-        self.peak_meter.set_level(audio.current_peak_db)
+        self.peak_meter.set_level(audio_state.peak_db)
 
-        self.rms_meter.set_level(audio.current_rms_db)
+        self.rms_meter.set_level(audio_state.rms_db)
