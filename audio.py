@@ -1,20 +1,24 @@
 import numpy as np
+
 from effects import process, LIMITER
 
 
+current_peak_db = -60.0
+current_rms_db = -60.0
+
+
 def linear_to_db(value):
+
     if value <= 1e-12:
         return -120.0
+
     return 20 * np.log10(value)
 
 
-def meter(db):
-    db = max(-60, min(0, db))
-    length = int((db + 60) / 60 * 30)
-    return "█" * length + "-" * (30 - length)
-
-
 def callback(indata, outdata, frames, time_info, status):
+
+    global current_peak_db
+    global current_rms_db
 
     if status:
         print(status)
@@ -27,13 +31,7 @@ def callback(indata, outdata, frames, time_info, status):
     rms_db = linear_to_db(rms)
     peak_db = linear_to_db(peak)
 
-    limiter_text = "ON " if LIMITER else "OFF"
-
-    print(
-        f"\rLimiter:{limiter_text}  "
-        f"Peak [{meter(peak_db)}] {peak_db:6.2f} dBFS   "
-        f"RMS [{meter(rms_db)}] {rms_db:6.2f} dBFS",
-        end=""
-    )
+    current_peak_db = rms_db
+    current_rms_db = peak_db
 
     outdata[:] = processed
