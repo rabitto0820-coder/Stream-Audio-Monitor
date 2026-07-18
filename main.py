@@ -8,6 +8,8 @@ from audio import callback
 
 from ui import MainWindow
 
+from check_devices import validate_audio_settings
+
 
 
 stream = None
@@ -38,7 +40,7 @@ def start_stream(
 
         print("====================")
 
-        print("Audio Start")
+        print("Audio Check")
 
         print(
             "Input:",
@@ -54,6 +56,43 @@ def start_stream(
             "Sample Rate:",
             samplerate
         )
+
+
+
+        # ==========================
+        # 設定チェック
+        # ==========================
+
+        valid, error = validate_audio_settings(
+            input_device,
+            output_device,
+            samplerate
+        )
+
+
+        if not valid:
+
+            print("====================")
+
+            print("AUDIO SETTING ERROR")
+
+            print(error)
+
+            print("====================")
+
+            return
+
+
+
+        print(
+            "Audio Check OK"
+        )
+
+
+
+        print("====================")
+
+        print("Audio Start")
 
         print(
             "Buffer:",
@@ -90,6 +129,7 @@ def start_stream(
 
     except Exception as e:
 
+
         print("====================")
 
         print("AUDIO ERROR")
@@ -97,7 +137,6 @@ def start_stream(
         print(e)
 
         print("====================")
-
 
 
         stream = None
@@ -137,7 +176,7 @@ print(" Stream Audio Monitor")
 
 print("======================================")
 
-print("Version 1.0")
+print("Version 1.1")
 
 
 
