@@ -281,7 +281,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(
             self.peak_meter
         )
+        
+        self.true_peak_meter = AudioMeter(
+            "True Peak"
+        )
 
+        layout.addWidget(
+            self.true_peak_meter
+        )
 
         self.rms_meter = AudioMeter(
             "RMS"
@@ -290,6 +297,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(
             self.rms_meter
         )
+
+
+
 
 
 
@@ -488,6 +498,9 @@ class MainWindow(QMainWindow):
             audio_state.peak_db
         )
 
+        self.true_peak_meter.set_level(
+            audio_state.true_peak_db
+        )
 
         self.rms_meter.set_level(
             audio_state.rms_db

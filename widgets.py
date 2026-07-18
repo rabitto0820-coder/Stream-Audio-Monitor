@@ -13,7 +13,8 @@ class AudioMeter(QWidget):
 
         self.name = name
         self.level = -60
-
+        # Peak Hold
+        self.hold_level = -60
         self.setMinimumHeight(50)
 
 
@@ -21,6 +22,14 @@ class AudioMeter(QWidget):
     def set_level(self, value):
 
         self.level = value
+        # Peak Hold更新
+        if value > self.hold_level:
+            self.hold_level = value
+        else:
+            self.hold_level -= 0.3
+
+        if self.hold_level < value:
+            self.hold_level = value
         self.update()
 
 

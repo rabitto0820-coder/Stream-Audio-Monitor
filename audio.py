@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.signal import resample_poly
 
 from effects import process
 from audio_state import audio_state
@@ -97,7 +98,19 @@ def callback(indata, outdata, frames, time_info, status):
     peak = np.max(
         np.abs(processed)
     )
+        # True Peak（現在はPeakと同じ値）
+    true_peak = peak
+    # True Peak (4x Oversampling)
+    oversampled = resample_poly(
+        processed,
+        4,
+        1,
+        axis=0
+    )
 
+    true_peak = np.max(
+        np.abs(oversampled)
+    )
 
     audio_state.rms_db = linear_to_db(
         rms
@@ -105,9 +118,11 @@ def callback(indata, outdata, frames, time_info, status):
 
 
     audio_state.peak_db = linear_to_db(
-        peak
+    true_peak
+)
+    audio_state.true_peak_db = linear_to_db(
+        true_peak
     )
-
 
 
     # スピーカー出力
