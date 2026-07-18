@@ -1,132 +1,187 @@
-import numpy as np
+import time
 
+import numpy as np
 from scipy.signal import resample_poly
 
 from audio_state import audio_state
+from effects import SafetyLimiter
+from loudness import LoudnessMeter
+from youtube import YouTubeOpusPreview
 
 
+opus_simulation = False
+sample_rate = 48000
 
-def callback(
-    indata,
-    outdata,
-    frames,
-    time,
-    status
-):
+loudness_meter = LoudnessMeter(
+    sample_rate=sample_rate,
+    channels=2
+)
 
+youtube_preview = YouTubeOpusPreview(
+    sample_rate=sample_rate,
+    channels=2
+)
+
+limiter = SafetyLimiter(
+    sample_rate=sample_rate,
+    ceiling_db=-1.0
+)
+
+
+def configure_audio(new_sample_rate, channels=2):
+    global sample_rate
+
+    sample_rate = int(new_sample_rate)
+
+    audio_state.sample_rate = sample_rate
+
+    loudness_meter.reset(
+        sample_rate=sample_rate,
+        channels=channels
+    )
+
+    youtube_preview.configure(
+        sample_rate=sample_rate,
+        channels=channels
+    )
+
+    limiter.configure(
+        sample_rate=sample_rate
+    )
+
+    audio_state.peak_db = -60.0
+    audio_state.true_peak_db = -60.0
+    audio_state.rms_db = -60.0
+
+    audio_state.lufs_m = -70.0
+    audio_state.lufs_s = -70.0
+    audio_state.lufs_i = -70.0
+
+    reset_clip_counter()
+
+
+def opus_filter(data):
+    return youtube_preview.process(data)
+
+
+def set_opus_bitrate(bitrate_kbps):
+    youtube_preview.configure(
+        sample_rate=sample_rate,
+        channels=youtube_preview.channels,
+        bitrate_kbps=bitrate_kbps,
+    )
+
+
+def reset_clip_counter():
+    audio_state.clip_count = 0
+    audio_state.clip_latched = False
+    audio_state.clip_hold_until = 0.0
+
+
+def set_limiter_enabled(enabled):
+    limiter.enabled = bool(enabled)
+    limiter.reset()
+
+
+def set_limiter_ceiling(ceiling_db):
+    limiter.configure(
+        ceiling_db=ceiling_db
+    )
+
+
+def _decibels(amplitude):
+    if amplitude > 0:
+        return 20.0 * np.log10(amplitude)
+
+    return -60.0
+
+
+def callback(indata, outdata, frames, time_info, status):
     if status:
         print(status)
 
-
-    # 音をそのまま出力
-    outdata[:] = indata
-
-
-    # コピー
     data = indata.copy()
 
+    if opus_simulation:
+        data = opus_filter(data)
 
-    # ステレオ → モノラル
-    mono = np.mean(
-        data,
-        axis=1
-    )
+    data = limiter.process(data)
 
+    outdata[:] = data
 
-    # RMS計算
-    volume = np.sqrt(
-        np.mean(
-            mono ** 2
+    mono = np.mean(data, axis=1)
+
+    audio_state.rms_db = _decibels(
+        float(
+            np.sqrt(
+                np.mean(
+                    np.square(mono)
+                )
+            )
         )
     )
 
-
-    # dB変換
-    if volume > 0:
-        rms_db = 20 * np.log10(volume)
-    else:
-        rms_db = -60.0
-
-
-    # FFT
-    fft = np.abs(
-        np.fft.rfft(
-            mono
+    audio_state.peak_db = _decibels(
+        float(
+            np.max(
+                np.abs(data)
+            )
         )
     )
 
-
-    # FFT正規化
-    if np.max(fft) > 0:
-
-        fft = fft / np.max(fft)
-
-
-
-    # RMS保存
-
-    audio_state.rms_db = rms_db
-
-
-    # Peak計算
-
-    peak = np.max(
-        np.abs(data)
+    clipped = bool(
+        np.any(
+            np.abs(data) >= 0.999
+        )
     )
 
+    if clipped:
+        if not audio_state.clip_latched:
+            audio_state.clip_count += 1
 
-    if peak > 0:
-        peak_db = 20 * np.log10(peak)
+        audio_state.clip_latched = True
+        audio_state.clip_hold_until = time.monotonic() + 1.5
+
     else:
-        peak_db = -60.0
-
-
-    audio_state.peak_db = peak_db
-
-
-    # True Peak計算（4倍オーバーサンプリング）
+        audio_state.clip_latched = False
 
     true_peak = 0.0
 
-    for ch in range(data.shape[1]):
-
+    for channel in range(data.shape[1]):
         oversampled = resample_poly(
-            data[:, ch],
+            data[:, channel],
             4,
             1
         )
 
-        peak = np.max(
-            np.abs(oversampled)
+        true_peak = max(
+            true_peak,
+            float(
+                np.max(
+                    np.abs(oversampled)
+                )
+            )
         )
 
-        if peak > true_peak:
-            true_peak = peak
+    audio_state.true_peak_db = _decibels(
+        true_peak
+    )
 
+    (
+        audio_state.lufs_m,
+        audio_state.lufs_s,
+        audio_state.lufs_i,
+    ) = loudness_meter.process(data)
 
+    fft = np.abs(
+        np.fft.rfft(mono)
+    )
 
-    if true_peak > 0:
-        true_peak_db = 20 * np.log10(true_peak)
-    else:
-        true_peak_db = -60.0
+    if np.max(fft) > 0:
+        fft = fft / np.max(fft)
 
+    audio_state.spectrum[:] = 0.0
 
-    audio_state.true_peak_db = true_peak_db
-
-   
+    audio_state.spectrum[:min(512, len(fft))] = fft[:512]
 
     audio_state.last_audio = data
-
-
-    # Spectrum用512ポイントへ縮小
-
-    if len(fft) >= 512:
-
-        audio_state.spectrum[:] = fft[:512]
-
-    else:
-
-        audio_state.spectrum[:] = 0
-
-        audio_state.spectrum[:len(fft)] = fft
-    

@@ -6,26 +6,27 @@ import numpy as np
 
 
 class AudioState:
-
     def __init__(self):
-
-        # Peak(dBFS)
         self.peak_db = -60.0
-        # True Peak(dBFS)
         self.true_peak_db = -60.0
-        # RMS(dBFS)
+
+        self.lufs_m = -70.0
+        self.lufs_s = -70.0
+        self.lufs_i = -70.0
+
         self.rms_db = -60.0
 
-        # FFT表示用
+        self.clip_count = 0
+        self.clip_latched = False
+        self.clip_hold_until = 0.0
+
         self.spectrum = np.zeros(
             512,
             dtype=np.float32
         )
 
-        # サンプルレート
         self.sample_rate = 48000
 
-        # FFT計算用音声バッファ
         self.last_audio = np.zeros(
             (2048, 2),
             dtype=np.float32
