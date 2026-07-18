@@ -96,7 +96,25 @@ class AudioMeter(QWidget):
             height
         )
 
+        # Peak Holdライン
+        hold_ratio = max(
+            0,
+            min(
+                1,
+                (self.hold_level + 60) / 60
+            )
+        )
 
+        painter.setBrush(
+            Qt.GlobalColor.white
+        )
+
+        painter.drawRect(
+            int(width * hold_ratio) - 1,
+            0,
+            2,
+            height
+        )
 
         painter.setPen(
             Qt.GlobalColor.white
