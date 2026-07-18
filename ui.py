@@ -8,8 +8,9 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import Qt, QTimer
 
-from widgets import AudioMeter
+from widgets import AudioMeter, SpectrumWidget
 from audio_state import audio_state
+
 
 
 class MainWindow(QMainWindow):
@@ -17,8 +18,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Stream Audio Monitor")
-        self.resize(900, 600)
+
+        self.setWindowTitle(
+            "Stream Audio Monitor"
+        )
+
+        self.resize(
+            900,
+            600
+        )
+
 
         self.setStyleSheet("""
             QMainWindow{
@@ -36,59 +45,140 @@ class MainWindow(QMainWindow):
             }
         """)
 
+
+
         central = QWidget()
 
-        self.setCentralWidget(central)
+        self.setCentralWidget(
+            central
+        )
+
 
         layout = QVBoxLayout()
 
-        layout.setSpacing(15)
+        layout.setSpacing(
+            15
+        )
 
-        central.setLayout(layout)
+        central.setLayout(
+            layout
+        )
 
-        title = QLabel("🎧 Stream Audio Monitor")
 
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # タイトル
+
+        title = QLabel(
+            "🎧 Stream Audio Monitor"
+        )
+
+        title.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
 
         title.setStyleSheet("""
             font-size:22pt;
             font-weight:bold;
         """)
 
-        layout.addWidget(title)
+        layout.addWidget(
+            title
+        )
 
-        self.peak_meter = AudioMeter("Peak")
 
-        layout.addWidget(self.peak_meter)
 
-        self.rms_meter = AudioMeter("RMS")
+        # Peak
 
-        layout.addWidget(self.rms_meter)
+        self.peak_meter = AudioMeter(
+            "Peak"
+        )
+
+        layout.addWidget(
+            self.peak_meter
+        )
+
+
+
+        # RMS
+
+        self.rms_meter = AudioMeter(
+            "RMS"
+        )
+
+        layout.addWidget(
+            self.rms_meter
+        )
+
+
+
+        # Spectrumエリア
 
         spectrum = QFrame()
 
         spectrum_layout = QVBoxLayout()
 
-        spectrum.setLayout(spectrum_layout)
-
-        spectrum_layout.addWidget(
-            QLabel("Spectrum Analyzer (Next Version)")
+        spectrum.setLayout(
+            spectrum_layout
         )
 
-        layout.addWidget(spectrum)
 
-        self.status = QLabel("Status : Running")
+        self.spectrum_widget = SpectrumWidget()
 
-        layout.addWidget(self.status)
+        spectrum_layout.addWidget(
+            self.spectrum_widget
+        )
+
+
+        layout.addWidget(
+            spectrum
+        )
+
+
+
+        # Status
+
+        self.status = QLabel(
+            "Status : Running"
+        )
+
+        layout.addWidget(
+            self.status
+        )
+
+
+
+        # 更新タイマー
 
         self.timer = QTimer()
 
-        self.timer.timeout.connect(self.update_gui)
+        self.timer.timeout.connect(
+            self.update_gui
+        )
 
-        self.timer.start(16)
+        self.timer.start(
+            16
+        )
+
+
 
     def update_gui(self):
 
-        self.peak_meter.set_level(audio_state.peak_db)
+        # Peak表示
 
-        self.rms_meter.set_level(audio_state.rms_db)
+        self.peak_meter.set_level(
+            audio_state.peak_db
+        )
+
+
+        # RMS表示
+
+        self.rms_meter.set_level(
+            audio_state.rms_db
+        )
+
+
+        # FFT Spectrum表示
+
+        self.spectrum_widget.set_spectrum(
+            audio_state.spectrum
+        )
