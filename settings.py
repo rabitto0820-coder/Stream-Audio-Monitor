@@ -10,7 +10,8 @@ def save_settings(
     input_device,
     output_device,
     samplerate,
-    blocksize
+    blocksize,
+    auto_start=False
 ):
 
     data = {
@@ -21,7 +22,10 @@ def save_settings(
 
         "samplerate": samplerate,
 
-        "blocksize": blocksize
+        "blocksize": blocksize,
+
+        "auto_start": auto_start
+
     }
 
 
@@ -58,4 +62,16 @@ def load_settings():
         encoding="utf-8"
     ) as f:
 
-        return json.load(f)
+        data = json.load(f)
+
+
+
+    # 古いsettings.json対応
+
+    if "auto_start" not in data:
+
+        data["auto_start"] = False
+
+
+
+    return data

@@ -4,6 +4,8 @@ import sounddevice as sd
 
 from PyQt6.QtWidgets import QApplication
 
+from PyQt6.QtCore import QTimer
+
 from audio import callback
 
 from ui import MainWindow
@@ -59,10 +61,6 @@ def start_stream(
 
 
 
-        # ==========================
-        # 設定チェック
-        # ==========================
-
         valid, error = validate_audio_settings(
             input_device,
             output_device,
@@ -80,7 +78,7 @@ def start_stream(
 
             print("====================")
 
-            return
+            return False
 
 
 
@@ -126,6 +124,9 @@ def start_stream(
         stream.start()
 
 
+        return True
+
+
 
     except Exception as e:
 
@@ -140,6 +141,9 @@ def start_stream(
 
 
         stream = None
+
+
+        return False
 
 
 
@@ -176,7 +180,7 @@ print(" Stream Audio Monitor")
 
 print("======================================")
 
-print("Version 1.1")
+print("Version 1.2")
 
 
 
@@ -196,6 +200,17 @@ window = MainWindow(
 
 
 window.show()
+
+
+
+# ==========================
+# Auto Start
+# ==========================
+
+QTimer.singleShot(
+    500,
+    window.auto_start_check
+)
 
 
 

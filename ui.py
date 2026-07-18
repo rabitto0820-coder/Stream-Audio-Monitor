@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import (
     QFrame,
     QComboBox,
     QPushButton,
-    QHBoxLayout
+    QHBoxLayout,
+    QCheckBox
 )
 
 from PyQt6.QtCore import Qt, QTimer
@@ -49,7 +50,6 @@ class MainWindow(QMainWindow):
         )
 
 
-
         self.setStyleSheet(
             """
             QMainWindow{
@@ -71,6 +71,10 @@ class MainWindow(QMainWindow):
                 background:#333333;
                 color:white;
                 padding:8px;
+            }
+
+            QCheckBox{
+                color:white;
             }
 
             QFrame{
@@ -105,6 +109,7 @@ class MainWindow(QMainWindow):
             "🎧 Stream Audio Monitor"
         )
 
+
         title.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
@@ -128,9 +133,11 @@ class MainWindow(QMainWindow):
         # 設定パネル
         # ==========================
 
+
         setting_frame = QFrame()
 
         setting_layout = QHBoxLayout()
+
 
         setting_frame.setLayout(
             setting_layout
@@ -142,10 +149,15 @@ class MainWindow(QMainWindow):
 
         self.output_box = QComboBox()
 
-
         self.rate_box = QComboBox()
 
         self.buffer_box = QComboBox()
+
+
+
+        self.auto_start_box = QCheckBox(
+            "Auto Start"
+        )
 
 
 
@@ -156,9 +168,13 @@ class MainWindow(QMainWindow):
 
 
         self.rate_values = [
+
             44100,
+
             48000,
+
             96000
+
         ]
 
 
@@ -171,11 +187,17 @@ class MainWindow(QMainWindow):
 
 
         self.buffer_values = [
+
             256,
+
             512,
+
             1024,
+
             2048,
+
             4096
+
         ]
 
 
@@ -195,6 +217,7 @@ class MainWindow(QMainWindow):
             QLabel("Input")
         )
 
+
         setting_layout.addWidget(
             self.input_box
         )
@@ -204,6 +227,7 @@ class MainWindow(QMainWindow):
         setting_layout.addWidget(
             QLabel("Output")
         )
+
 
         setting_layout.addWidget(
             self.output_box
@@ -215,6 +239,7 @@ class MainWindow(QMainWindow):
             QLabel("Rate")
         )
 
+
         setting_layout.addWidget(
             self.rate_box
         )
@@ -225,8 +250,14 @@ class MainWindow(QMainWindow):
             QLabel("Buffer")
         )
 
+
         setting_layout.addWidget(
             self.buffer_box
+        )
+
+
+        setting_layout.addWidget(
+            self.auto_start_box
         )
 
 
@@ -245,6 +276,7 @@ class MainWindow(QMainWindow):
         setting_layout.addWidget(
             self.start_button
         )
+
 
         setting_layout.addWidget(
             self.stop_button
@@ -278,14 +310,17 @@ class MainWindow(QMainWindow):
             "Peak"
         )
 
+
         layout.addWidget(
             self.peak_meter
         )
 
 
+
         self.rms_meter = AudioMeter(
             "RMS"
         )
+
 
         layout.addWidget(
             self.rms_meter
@@ -294,6 +329,7 @@ class MainWindow(QMainWindow):
 
 
         self.spectrum = SpectrumWidget()
+
 
         layout.addWidget(
             self.spectrum
@@ -305,6 +341,7 @@ class MainWindow(QMainWindow):
             "Status : Ready"
         )
 
+
         layout.addWidget(
             self.status
         )
@@ -312,6 +349,7 @@ class MainWindow(QMainWindow):
 
 
         self.timer = QTimer()
+
 
         self.timer.timeout.connect(
             self.update_gui
@@ -321,10 +359,7 @@ class MainWindow(QMainWindow):
         self.timer.start(
             16
         )
-
-
-
-    def load_devices(self):
+            def load_devices(self):
 
         devices = sd.query_devices()
 
@@ -363,6 +398,7 @@ class MainWindow(QMainWindow):
 
 
         saved = load_settings()
+
 
 
         if saved:
@@ -412,6 +448,19 @@ class MainWindow(QMainWindow):
 
 
 
+            if saved.get(
+                "auto_start",
+                False
+            ):
+
+                self.auto_start_box.setChecked(
+                    True
+                )
+
+
+
+
+
     def start_audio(self):
 
         input_device = self.input_devices[
@@ -434,6 +483,9 @@ class MainWindow(QMainWindow):
         ]
 
 
+        auto_start = self.auto_start_box.isChecked()
+
+
 
         print("Input:", input_device)
 
@@ -443,28 +495,55 @@ class MainWindow(QMainWindow):
 
         print("Buffer:", blocksize)
 
+        print("Auto Start:", auto_start)
+
 
 
         save_settings(
+
             input_device,
+
             output_device,
+
             samplerate,
-            blocksize
+
+            blocksize,
+
+            auto_start
+
         )
 
 
 
-        self.start_stream(
+        result = self.start_stream(
+
             input_device,
+
             output_device,
+
             samplerate,
+
             blocksize
+
         )
+
+
+
+        if result is False:
+
+            self.status.setText(
+                "Status : Error"
+            )
+
+            return
+
 
 
         self.status.setText(
             "Status : Running"
         )
+
+
 
 
 
@@ -476,6 +555,36 @@ class MainWindow(QMainWindow):
         self.status.setText(
             "Status : Stopped"
         )
+
+
+
+
+
+    def auto_start_check(self):
+
+        saved = load_settings()
+
+
+
+        if not saved:
+
+            return
+
+
+
+        if saved.get(
+            "auto_start",
+            False
+        ):
+
+            print(
+                "Auto Start Enabled"
+            )
+
+
+            self.start_audio()
+
+
 
 
 
