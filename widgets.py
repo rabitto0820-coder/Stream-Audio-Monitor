@@ -34,8 +34,10 @@ class AudioMeter(QWidget):
 
 
 
+        # 背景
+
         painter.setBrush(
-            QColor("#333333")
+            QColor("#202124")
         )
 
         painter.drawRect(
@@ -62,9 +64,20 @@ class AudioMeter(QWidget):
 
 
 
-        painter.setBrush(
-            QColor("#00ff66")
-        )
+        # レベル色
+
+        if self.level > -3:
+            color = QColor("#ff3333")
+
+        elif self.level > -12:
+            color = QColor("#ffd633")
+
+        else:
+            color = QColor("#00ff66")
+
+
+
+        painter.setBrush(color)
 
 
         painter.drawRect(
@@ -106,15 +119,11 @@ class SpectrumWidget(QWidget):
         )
 
 
-        # 表示用スムージングデータ
-
         self.display = np.zeros(
             512,
             dtype=np.float32
         )
 
-
-        # ピーク保持
 
         self.peak = np.zeros(
             512,
@@ -123,7 +132,7 @@ class SpectrumWidget(QWidget):
 
 
         self.setMinimumHeight(
-            220
+            250
         )
 
 
@@ -137,8 +146,7 @@ class SpectrumWidget(QWidget):
         self.spectrum = spectrum.copy()
 
 
-        # 上昇は速く
-        # 下降はゆっくり
+        # スムージング
 
         self.display = (
             self.display * 0.75
@@ -147,7 +155,8 @@ class SpectrumWidget(QWidget):
         )
 
 
-        # ピーク更新
+
+        # ピーク保持
 
         self.peak = np.maximum(
             self.peak * 0.96,
@@ -172,7 +181,7 @@ class SpectrumWidget(QWidget):
         # 背景
 
         painter.setBrush(
-            QColor("#111111")
+            QColor("#181818")
         )
 
         painter.drawRect(
@@ -184,9 +193,49 @@ class SpectrumWidget(QWidget):
 
 
 
+        # グリッド
+
+        painter.setPen(
+            QColor("#303030")
+        )
+
+
+        for y in range(
+            40,
+            height - 30,
+            40
+        ):
+
+            painter.drawLine(
+                0,
+                y,
+                width,
+                y
+            )
+
+
+
+        for x in range(
+            0,
+            width,
+            width // 8
+        ):
+
+            painter.drawLine(
+                x,
+                25,
+                x,
+                height - 30
+            )
+
+
+
+        # タイトル
+
         painter.setPen(
             Qt.GlobalColor.white
         )
+
 
         painter.drawText(
             10,
@@ -202,8 +251,8 @@ class SpectrumWidget(QWidget):
 
 
         bar_width = max(
-            2,
-            width // bars - 2
+            3,
+            width // bars - 3
         )
 
 
@@ -227,12 +276,12 @@ class SpectrumWidget(QWidget):
 
 
             bar_height = int(
-                value * (height - 50)
+                value * (height - 60)
             )
 
 
             peak_height = int(
-                peak_value * (height - 50)
+                peak_value * (height - 60)
             )
 
 
@@ -242,14 +291,28 @@ class SpectrumWidget(QWidget):
             )
 
 
-            y = height - bar_height
+            y = height - bar_height - 25
 
 
 
-            # 棒
+            # 高さによる色変化
+
+            if value > 0.75:
+
+                color = QColor("#ff3333")
+
+            elif value > 0.45:
+
+                color = QColor("#ffd633")
+
+            else:
+
+                color = QColor("#00ff66")
+
+
 
             painter.setBrush(
-                QColor("#00ff66")
+                color
             )
 
 
@@ -262,7 +325,7 @@ class SpectrumWidget(QWidget):
 
 
 
-            # ピーク線
+            # ピーク表示
 
             painter.setBrush(
                 QColor("#ffffff")
@@ -271,7 +334,7 @@ class SpectrumWidget(QWidget):
 
             painter.drawRect(
                 x,
-                height - peak_height - 2,
+                height - peak_height - 27,
                 bar_width,
                 2
             )
@@ -287,20 +350,20 @@ class SpectrumWidget(QWidget):
 
         painter.drawText(
             10,
-            height - 10,
+            height - 8,
             "20Hz"
         )
 
 
         painter.drawText(
-            width // 2 - 30,
-            height - 10,
+            width // 2 - 25,
+            height - 8,
             "1kHz"
         )
 
 
         painter.drawText(
             width - 60,
-            height - 10,
+            height - 8,
             "20kHz"
         )
