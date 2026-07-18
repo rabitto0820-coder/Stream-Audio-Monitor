@@ -7,12 +7,57 @@ from audio import callback
 from ui import MainWindow
 
 
-INPUT_DEVICE = 23
-OUTPUT_DEVICE = 19
-
 SAMPLERATE = 48000
 CHANNELS = 2
 BLOCKSIZE = 2048
+
+
+stream = None
+
+
+
+def start_stream(input_device, output_device):
+
+    global stream
+
+
+    if stream is not None:
+
+        stream.stop()
+        stream.close()
+
+
+    stream = sd.Stream(
+        device=(
+            input_device,
+            output_device
+        ),
+        samplerate=SAMPLERATE,
+        channels=CHANNELS,
+        blocksize=BLOCKSIZE,
+        latency="low",
+        callback=callback
+    )
+
+
+    stream.start()
+
+
+
+def stop_stream():
+
+    global stream
+
+
+    if stream is not None:
+
+        stream.stop()
+        stream.close()
+
+        stream = None
+
+
+
 
 
 print("======================================")
@@ -21,29 +66,28 @@ print("======================================")
 print("Version 1.0")
 
 
-# 音声ストリーム開始
-stream = sd.Stream(
-    device=(INPUT_DEVICE, OUTPUT_DEVICE),
-    samplerate=SAMPLERATE,
-    channels=CHANNELS,
-    blocksize=BLOCKSIZE,
-    latency="low",
-    callback=callback
-)
 
-stream.start()
-
-
-# PyQt6起動
 app = QApplication(sys.argv)
 
-window = MainWindow()
+
+
+window = MainWindow(
+    start_stream,
+    stop_stream
+)
+
+
 window.show()
 
 
+
 try:
-    sys.exit(app.exec())
+
+    sys.exit(
+        app.exec()
+    )
+
 
 finally:
-    stream.stop()
-    stream.close()
+
+    stop_stream()
