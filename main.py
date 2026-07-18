@@ -2,7 +2,7 @@ import sys
 
 import sounddevice as sd
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from audio import callback
 
@@ -26,20 +26,42 @@ def start_stream(
 
     try:
 
+        # 既存ストリーム停止
+
         if stream is not None:
 
             stream.stop()
 
             stream.close()
 
+            stream = None
+
 
 
         print("====================")
+
         print("Audio Start")
-        print("Input:", input_device)
-        print("Output:", output_device)
-        print("Sample Rate:", samplerate)
-        print("Buffer:", blocksize)
+
+        print(
+            "Input:",
+            input_device
+        )
+
+        print(
+            "Output:",
+            output_device
+        )
+
+        print(
+            "Sample Rate:",
+            samplerate
+        )
+
+        print(
+            "Buffer:",
+            blocksize
+        )
+
         print("====================")
 
 
@@ -53,11 +75,11 @@ def start_stream(
 
             samplerate=samplerate,
 
-            channels=(2, 2),
+            channels=2,
 
             blocksize=blocksize,
 
-            latency="low",
+            latency="high",
 
             callback=callback
 
@@ -71,8 +93,11 @@ def start_stream(
     except Exception as e:
 
         print("====================")
+
         print("AUDIO ERROR")
+
         print(e)
+
         print("====================")
 
 
@@ -88,11 +113,20 @@ def stop_stream():
     global stream
 
 
+
     if stream is not None:
 
-        stream.stop()
+        try:
 
-        stream.close()
+            stream.stop()
+
+            stream.close()
+
+
+        except Exception:
+
+            pass
+
 
         stream = None
 
@@ -101,9 +135,14 @@ def stop_stream():
 
 
 print("======================================")
+
 print(" Stream Audio Monitor")
+
 print("======================================")
+
 print("Version 1.0")
+
+
 
 
 
@@ -119,17 +158,13 @@ window = MainWindow(
 )
 
 
+
 window.show()
+
+
 
 
 
 try:
 
-    sys.exit(
-        app.exec()
-    )
-
-
-finally:
-
-    stop_stream()
+   
