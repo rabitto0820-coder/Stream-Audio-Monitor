@@ -64,6 +64,8 @@ class MainWindow(QMainWindow):
             """
         )
 
+        self.headroom_indicator = QLabel("Headroom: 60.0 dB")
+
         self.clip_indicator = QLabel("CLIP: 0")
         self.clip_indicator.setStyleSheet(
             """
@@ -78,6 +80,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.status)
         status_row.addStretch()
         status_row.addWidget(self.normalizer_gain_indicator)
+        status_row.addWidget(self.headroom_indicator)
         status_row.addWidget(self.clip_indicator)
         status_row.addWidget(self.clear_clip_button)
 
@@ -439,6 +442,31 @@ class MainWindow(QMainWindow):
         audio.reset_clip_counter()
         self.clip_indicator.setText("CLIP: 0")
 
+    def update_headroom_indicator(self):
+        headroom_db = -audio_state.true_peak_db
+
+        self.headroom_indicator.setText(
+            f"Headroom: {headroom_db:.1f} dB"
+        )
+
+        if headroom_db < 0.0:
+            style = """
+                background: #8b1e1e; color: white;
+                padding: 6px; border-radius: 4px;
+            """
+        elif headroom_db < 3.0:
+            style = """
+                background: #66520e; color: #fff3b0;
+                padding: 6px; border-radius: 4px;
+            """
+        else:
+            style = """
+                background: #304030; color: #baffba;
+                padding: 6px; border-radius: 4px;
+            """
+
+        self.headroom_indicator.setStyleSheet(style)
+
     def update_gui(self):
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
@@ -471,6 +499,8 @@ class MainWindow(QMainWindow):
         self.normalizer_gain_indicator.setText(
             f"Normalize: {audio_state.normalizer_gain_db:+.1f} dB"
         )
+
+        self.update_headroom_indicator()
 
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(
