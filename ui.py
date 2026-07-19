@@ -621,8 +621,16 @@ class MainWindow(QMainWindow):
     def update_lufs_time_indicator(self):
         total_seconds = int(audio_state.lufs_measurement_seconds)
         minutes, seconds = divmod(total_seconds, 60)
+
+        if total_seconds < 30:
+            progress = "START"
+        elif total_seconds < 120:
+            progress = "MEASURING"
+        else:
+            progress = "LONG"
+
         self.lufs_time_indicator.setText(
-            f"LUFS: {minutes:02d}:{seconds:02d}"
+            f"LUFS: {minutes:02d}:{seconds:02d} {progress}"
         )
 
     def update_gui(self):
