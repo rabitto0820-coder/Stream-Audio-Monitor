@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
             """
         )
 
-        self.youtube_gain_indicator = QLabel("YT Gain: 0.0 dB")
+        self.youtube_gain_indicator = QLabel("YT: 0.0 dB / 100%")
         self.youtube_gain_indicator.setStyleSheet(
             """
             background: #3b263f; color: #ffd1ff;
@@ -610,8 +610,13 @@ class MainWindow(QMainWindow):
             f"Normalize: {audio_state.normalizer_gain_db:+.1f} dB"
         )
 
+        youtube_volume_percent = 100.0 * (
+            10.0 ** (audio_state.youtube_gain_db / 20.0)
+        )
+
         self.youtube_gain_indicator.setText(
-            f"YT Gain: {audio_state.youtube_gain_db:+.1f} dB"
+            f"YT: {audio_state.youtube_gain_db:+.1f} dB "
+            f"/ {youtube_volume_percent:.0f}%"
         )
 
         self.update_headroom_indicator()
