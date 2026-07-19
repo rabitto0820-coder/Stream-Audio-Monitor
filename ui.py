@@ -82,6 +82,21 @@ class MainWindow(QMainWindow):
             self.reset_integrated_loudness
         )
 
+        self.youtube_preset_button = QPushButton("YouTube")
+        self.youtube_preset_button.clicked.connect(
+            self.apply_youtube_preset
+        )
+
+        self.podcast_preset_button = QPushButton("Podcast")
+        self.podcast_preset_button.clicked.connect(
+            self.apply_podcast_preset
+        )
+
+        self.broadcast_preset_button = QPushButton("Broadcast")
+        self.broadcast_preset_button.clicked.connect(
+            self.apply_broadcast_preset
+        )
+
         status_row.addWidget(self.status)
         status_row.addStretch()
         status_row.addWidget(self.normalizer_gain_indicator)
@@ -89,6 +104,9 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.clip_indicator)
         status_row.addWidget(self.clear_clip_button)
         status_row.addWidget(self.reset_lufs_button)
+        status_row.addWidget(self.youtube_preset_button)
+        status_row.addWidget(self.podcast_preset_button)
+        status_row.addWidget(self.broadcast_preset_button)
 
         layout.addLayout(status_row)
 
@@ -451,6 +469,59 @@ class MainWindow(QMainWindow):
         self.status.setText("Status: Integrated LUFS reset")
 
         print("Integrated LUFS: RESET")
+
+    def apply_youtube_preset(self):
+        self.apply_loudness_preset(
+            name="YouTube",
+            target_lufs=-14.0,
+            limiter_ceiling=-1.0,
+            opus_preview=True,
+        )
+
+    def apply_podcast_preset(self):
+        self.apply_loudness_preset(
+            name="Podcast",
+            target_lufs=-16.0,
+            limiter_ceiling=-1.0,
+            opus_preview=False,
+        )
+
+    def apply_broadcast_preset(self):
+        self.apply_loudness_preset(
+            name="Broadcast",
+            target_lufs=-23.0,
+            limiter_ceiling=-1.0,
+            opus_preview=False,
+        )
+
+    def apply_loudness_preset(
+        self,
+        name,
+        target_lufs,
+        limiter_ceiling,
+        opus_preview,
+    ):
+        self.normalizer_target_box.setCurrentIndex(
+            self.normalizer_target_values.index(target_lufs)
+        )
+
+        self.limiter_ceiling_box.setCurrentIndex(
+            self.limiter_ceiling_values.index(limiter_ceiling)
+        )
+
+        self.normalizer_checkbox.setChecked(True)
+        self.limiter_checkbox.setChecked(True)
+        self.youtube_checkbox.setChecked(opus_preview)
+
+        if not opus_preview:
+            self.aac_checkbox.setChecked(False)
+
+        self.status.setText(f"Status: {name} preset applied")
+
+        print(
+            f"Preset: {name} "
+            f"({target_lufs:.0f} LUFS, {limiter_ceiling:.0f} dBFS)"
+        )
 
     def update_headroom_indicator(self):
         headroom_db = -audio_state.true_peak_db
