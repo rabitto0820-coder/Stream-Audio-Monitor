@@ -12,6 +12,7 @@ class AudioState:
         self.lufs_s = -70.0
         self.lufs_i = -70.0
         self.normalizer_gain_db = 0.0
+        self.youtube_gain_db = 0.0
 
         self.rms_db = -60.0
 

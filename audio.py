@@ -5,7 +5,11 @@ from scipy.signal import resample_poly
 
 from aac import AACPreview
 from audio_state import audio_state
-from effects import LoudnessNormalizer, SafetyLimiter
+from effects import (
+    LoudnessNormalizer,
+    SafetyLimiter,
+    YouTubePlaybackNormalizer,
+)
 from loudness import LoudnessMeter
 from youtube import YouTubeOpusPreview
 
@@ -39,6 +43,10 @@ normalizer = LoudnessNormalizer(
     target_lufs=-14.0
 )
 
+youtube_normalizer = YouTubePlaybackNormalizer(
+    target_lufs=-14.0
+)
+
 
 def configure_audio(new_sample_rate, channels=2):
     global sample_rate
@@ -69,6 +77,8 @@ def configure_audio(new_sample_rate, channels=2):
 
     normalizer.reset()
     audio_state.normalizer_gain_db = 0.0
+    youtube_normalizer.reset()
+    audio_state.youtube_gain_db = 0.0
 
     audio_state.peak_db = -60.0
     audio_state.true_peak_db = -60.0
@@ -135,6 +145,12 @@ def set_normalizer_target(target_lufs):
     audio_state.normalizer_gain_db = 0.0
 
 
+def set_youtube_normalizer_enabled(enabled):
+    youtube_normalizer.enabled = bool(enabled)
+    youtube_normalizer.reset()
+    audio_state.youtube_gain_db = 0.0
+
+
 def _decibels(amplitude):
     if amplitude > 0:
         return 20.0 * np.log10(amplitude)
@@ -153,6 +169,15 @@ def callback(indata, outdata, frames, time_info, status):
 
     elif aac_simulation:
         data = aac_preview.process(data)
+
+    (
+        audio_state.lufs_m,
+        audio_state.lufs_s,
+        audio_state.lufs_i,
+    ) = loudness_meter.process(data)
+
+    data = youtube_normalizer.process(data, audio_state.lufs_i)
+    audio_state.youtube_gain_db = youtube_normalizer.gain_db
 
     data = normalizer.process(data, audio_state.lufs_s)
     audio_state.normalizer_gain_db = normalizer.gain_db
@@ -239,12 +264,6 @@ def callback(indata, outdata, frames, time_info, status):
     audio_state.true_peak_db = _decibels(
         true_peak
     )
-
-    (
-        audio_state.lufs_m,
-        audio_state.lufs_s,
-        audio_state.lufs_i,
-    ) = loudness_meter.process(data)
 
     fft = np.abs(
         np.fft.rfft(mono)

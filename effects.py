@@ -70,3 +70,26 @@ class LoudnessNormalizer:
         self.gain_db += np.clip(desired_gain - self.gain_db, -0.05, 0.05)
 
         return data * (10.0 ** (self.gain_db / 20.0))
+
+
+class YouTubePlaybackNormalizer:
+    """Playback-gain preview for YouTube-style loudness normalization."""
+
+    def __init__(self, target_lufs=-14.0):
+        self.target_lufs = float(target_lufs)
+        self.enabled = False
+        self.gain_db = 0.0
+
+    def reset(self):
+        self.gain_db = 0.0
+
+    def process(self, data, integrated_lufs):
+        if not self.enabled or integrated_lufs <= -69.0:
+            return data
+
+        # This preview only turns down loud content.  It never boosts quiet
+        # material and does not follow short-term loudness like a compressor.
+        self.gain_db = float(
+            np.clip(self.target_lufs - integrated_lufs, -20.0, 0.0)
+        )
+        return data * (10.0 ** (self.gain_db / 20.0))

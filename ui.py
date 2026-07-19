@@ -64,6 +64,14 @@ class MainWindow(QMainWindow):
             """
         )
 
+        self.youtube_gain_indicator = QLabel("YT Gain: 0.0 dB")
+        self.youtube_gain_indicator.setStyleSheet(
+            """
+            background: #3b263f; color: #ffd1ff;
+            padding: 6px; border-radius: 4px;
+            """
+        )
+
         self.headroom_indicator = QLabel("Headroom: 60.0 dB")
 
         self.clip_indicator = QLabel("CLIP: 0")
@@ -100,6 +108,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.status)
         status_row.addStretch()
         status_row.addWidget(self.normalizer_gain_indicator)
+        status_row.addWidget(self.youtube_gain_indicator)
         status_row.addWidget(self.headroom_indicator)
         status_row.addWidget(self.clip_indicator)
         status_row.addWidget(self.clear_clip_button)
@@ -155,6 +164,9 @@ class MainWindow(QMainWindow):
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
         self.normalizer_checkbox = QCheckBox("Loudness Normalize")
+        self.youtube_normalize_checkbox = QCheckBox(
+            "YouTube Playback Normalize"
+        )
 
         self.load_devices()
 
@@ -183,6 +195,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.limiter_checkbox)
 
         layout.addWidget(self.normalizer_checkbox)
+        layout.addWidget(self.youtube_normalize_checkbox)
         layout.addWidget(QLabel("Target"))
         layout.addWidget(self.normalizer_target_box)
 
@@ -212,6 +225,10 @@ class MainWindow(QMainWindow):
 
         self.normalizer_checkbox.toggled.connect(
             self.toggle_normalizer
+        )
+
+        self.youtube_normalize_checkbox.toggled.connect(
+            self.toggle_youtube_normalizer
         )
 
         self.normalizer_target_box.currentIndexChanged.connect(
@@ -452,6 +469,13 @@ class MainWindow(QMainWindow):
             self.normalizer_target_box.currentIndex()
         ]
 
+    def toggle_youtube_normalizer(self, enabled):
+        import audio
+
+        audio.set_youtube_normalizer_enabled(enabled)
+        state = "ON" if enabled else "OFF"
+        print(f"YouTube Playback Normalize: {state}")
+
     def change_theme(self, name):
         apply_theme(self, name)
 
@@ -476,6 +500,7 @@ class MainWindow(QMainWindow):
             target_lufs=-14.0,
             limiter_ceiling=-1.0,
             opus_preview=True,
+            youtube_normalize=True,
         )
 
     def apply_podcast_preset(self):
@@ -484,6 +509,7 @@ class MainWindow(QMainWindow):
             target_lufs=-16.0,
             limiter_ceiling=-1.0,
             opus_preview=False,
+            youtube_normalize=False,
         )
 
     def apply_broadcast_preset(self):
@@ -492,6 +518,7 @@ class MainWindow(QMainWindow):
             target_lufs=-23.0,
             limiter_ceiling=-1.0,
             opus_preview=False,
+            youtube_normalize=False,
         )
 
     def apply_loudness_preset(
@@ -500,6 +527,7 @@ class MainWindow(QMainWindow):
         target_lufs,
         limiter_ceiling,
         opus_preview,
+        youtube_normalize,
     ):
         self.normalizer_target_box.setCurrentIndex(
             self.normalizer_target_values.index(target_lufs)
@@ -509,7 +537,8 @@ class MainWindow(QMainWindow):
             self.limiter_ceiling_values.index(limiter_ceiling)
         )
 
-        self.normalizer_checkbox.setChecked(True)
+        self.normalizer_checkbox.setChecked(not youtube_normalize)
+        self.youtube_normalize_checkbox.setChecked(youtube_normalize)
         self.limiter_checkbox.setChecked(True)
         self.youtube_checkbox.setChecked(opus_preview)
 
@@ -579,6 +608,10 @@ class MainWindow(QMainWindow):
 
         self.normalizer_gain_indicator.setText(
             f"Normalize: {audio_state.normalizer_gain_db:+.1f} dB"
+        )
+
+        self.youtube_gain_indicator.setText(
+            f"YT Gain: {audio_state.youtube_gain_db:+.1f} dB"
         )
 
         self.update_headroom_indicator()
