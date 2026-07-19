@@ -1,5 +1,4 @@
 import time
-
 import sounddevice as sd
 
 from PyQt6.QtCore import Qt, QTimer
@@ -10,12 +9,10 @@ from PyQt6.QtWidgets import (
 
 from audio_state import audio_state
 from settings import load_settings, save_settings
+from themes import apply_theme, theme_names
 from widgets import (
-    AudioMeter,
-    CorrelationWidget,
-    PhaseScopeWidget,
-    SpectrumWidget,
-    WaveformWidget,
+    AudioMeter, CorrelationWidget, PhaseScopeWidget,
+    SpectrumWidget, WaveformWidget,
 )
 
 
@@ -37,20 +34,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Stream Audio Monitor")
         self.resize(1100, 1200)
 
-        self.setStyleSheet(
-            """
-            QMainWindow { background: #181818; }
-            QLabel { color: #f1f1f1; font-size: 12pt; }
-            QComboBox, QPushButton {
-                background: #303030; color: #f1f1f1;
-                border: 1px solid #555555;
-                border-radius: 4px; padding: 6px;
-            }
-            QPushButton:hover { background: #444444; }
-            QCheckBox { color: #f1f1f1; }
-            QFrame { background: #242424; border-radius: 8px; }
-            """
-        )
+        apply_theme(self, "Studio Dark")
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -61,10 +45,9 @@ class MainWindow(QMainWindow):
         title = QLabel("Stream Audio Monitor")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 22pt; font-weight: bold;")
-
         layout.addWidget(title)
-        layout.addWidget(self.create_settings_panel())
 
+        layout.addWidget(self.create_settings_panel())
         self.create_meters(layout)
 
         status_row = QHBoxLayout()
@@ -106,6 +89,7 @@ class MainWindow(QMainWindow):
 
         self.opus_bitrate_box = QComboBox()
         self.limiter_ceiling_box = QComboBox()
+        self.theme_box = QComboBox()
 
         for value in self.rate_values:
             self.rate_box.addItem(f"{value} Hz")
@@ -118,6 +102,8 @@ class MainWindow(QMainWindow):
 
         for value in self.limiter_ceiling_values:
             self.limiter_ceiling_box.addItem(f"{value:.0f} dBFS")
+
+        self.theme_box.addItems(theme_names())
 
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
@@ -151,6 +137,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("Ceiling"))
         layout.addWidget(self.limiter_ceiling_box)
 
+        layout.addWidget(QLabel("Skin"))
+        layout.addWidget(self.theme_box)
+
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
 
@@ -162,6 +151,10 @@ class MainWindow(QMainWindow):
         self.limiter_checkbox.toggled.connect(self.toggle_limiter)
         self.limiter_ceiling_box.currentIndexChanged.connect(
             self.change_limiter_ceiling
+        )
+
+        self.theme_box.currentTextChanged.connect(
+            self.change_theme
         )
 
         return frame
@@ -306,11 +299,6 @@ class MainWindow(QMainWindow):
             f"YouTube Opus Preview bitrate: {bitrate} kbps"
         )
 
-        if self.youtube_checkbox.isChecked():
-            self.status.setText(
-                f"Status: YouTube Opus Preview ({bitrate} kbps)"
-            )
-
     def current_opus_bitrate(self):
         return self.opus_bitrate_values[
             self.opus_bitrate_box.currentIndex()
@@ -342,6 +330,9 @@ class MainWindow(QMainWindow):
         return self.limiter_ceiling_values[
             self.limiter_ceiling_box.currentIndex()
         ]
+
+    def change_theme(self, name):
+        apply_theme(self, name)
 
     def clear_clip(self):
         import audio
@@ -385,6 +376,7 @@ class MainWindow(QMainWindow):
                 padding: 6px; border-radius: 4px;
                 """
             )
+
         else:
             self.clip_indicator.setStyleSheet(
                 """
