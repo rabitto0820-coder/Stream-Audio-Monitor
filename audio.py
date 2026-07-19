@@ -34,6 +34,7 @@ def configure_audio(new_sample_rate, channels=2):
     sample_rate = int(new_sample_rate)
 
     audio_state.sample_rate = sample_rate
+    audio_state.correlation = 0.0
 
     loudness_meter.reset(
         sample_rate=sample_rate,
@@ -110,6 +111,28 @@ def callback(indata, outdata, frames, time_info, status):
     outdata[:] = data
 
     mono = np.mean(data, axis=1)
+
+    if data.shape[1] >= 2:
+        left = data[:, 0]
+        right = data[:, 1]
+
+        denominator = float(
+            np.sqrt(
+                np.sum(left ** 2)
+                *
+                np.sum(right ** 2)
+            )
+        )
+
+        if denominator > 0:
+            audio_state.correlation = float(
+                np.sum(left * right) / denominator
+            )
+        else:
+            audio_state.correlation = 0.0
+
+    else:
+        audio_state.correlation = 1.0
 
     audio_state.rms_db = _decibels(
         float(

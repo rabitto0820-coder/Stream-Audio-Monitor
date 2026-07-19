@@ -16,6 +16,9 @@ class AudioState:
 
         self.rms_db = -60.0
 
+        # Stereo correlation: +1.0 is in phase, -1.0 is opposite phase.
+        self.correlation = 0.0
+
         self.clip_count = 0
         self.clip_latched = False
         self.clip_hold_until = 0.0

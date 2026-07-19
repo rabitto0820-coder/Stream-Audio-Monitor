@@ -17,7 +17,7 @@ import sounddevice as sd
 
 from audio_state import audio_state
 from settings import load_settings, save_settings
-from widgets import AudioMeter, SpectrumWidget
+from widgets import AudioMeter, CorrelationWidget, SpectrumWidget
 
 
 class MainWindow(QMainWindow):
@@ -81,7 +81,6 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Stream Audio Monitor")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         title.setStyleSheet(
             "font-size: 22pt; font-weight: bold;"
         )
@@ -99,7 +98,6 @@ class MainWindow(QMainWindow):
         self.status = QLabel("Status: Ready")
 
         self.clip_indicator = QLabel("CLIP: 0")
-
         self.clip_indicator.setStyleSheet(
             """
             background: #304030;
@@ -139,7 +137,6 @@ class MainWindow(QMainWindow):
 
         self.input_box = QComboBox()
         self.output_box = QComboBox()
-
         self.rate_box = QComboBox()
         self.buffer_box = QComboBox()
 
@@ -243,6 +240,8 @@ class MainWindow(QMainWindow):
         self.lufs_s_meter = AudioMeter("LUFS-S")
         self.lufs_i_meter = AudioMeter("LUFS-I")
 
+        self.correlation_meter = CorrelationWidget()
+
         self.spectrum = SpectrumWidget()
 
         for meter in (
@@ -252,6 +251,7 @@ class MainWindow(QMainWindow):
             self.lufs_m_meter,
             self.lufs_s_meter,
             self.lufs_i_meter,
+            self.correlation_meter,
             self.spectrum,
         ):
             layout.addWidget(meter)
@@ -459,6 +459,10 @@ class MainWindow(QMainWindow):
 
         self.lufs_i_meter.set_level(
             audio_state.lufs_i
+        )
+
+        self.correlation_meter.set_correlation(
+            audio_state.correlation
         )
 
         self.spectrum.set_spectrum(
