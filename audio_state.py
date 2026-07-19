@@ -1,6 +1,4 @@
-"""
-GUIとAudio Engineで共有するデータ
-"""
+"""Shared real-time data between the audio engine and the GUI."""
 
 import numpy as np
 
@@ -13,6 +11,7 @@ class AudioState:
         self.lufs_m = -70.0
         self.lufs_s = -70.0
         self.lufs_i = -70.0
+        self.normalizer_gain_db = 0.0
 
         self.rms_db = -60.0
 

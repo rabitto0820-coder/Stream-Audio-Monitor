@@ -68,6 +68,7 @@ def configure_audio(new_sample_rate, channels=2):
     )
 
     normalizer.reset()
+    audio_state.normalizer_gain_db = 0.0
 
     audio_state.peak_db = -60.0
     audio_state.true_peak_db = -60.0
@@ -121,10 +122,12 @@ def set_limiter_ceiling(ceiling_db):
 def set_normalizer_enabled(enabled):
     normalizer.enabled = bool(enabled)
     normalizer.reset()
+    audio_state.normalizer_gain_db = 0.0
 
 
 def set_normalizer_target(target_lufs):
     normalizer.set_target(target_lufs)
+    audio_state.normalizer_gain_db = 0.0
 
 
 def _decibels(amplitude):
@@ -147,6 +150,8 @@ def callback(indata, outdata, frames, time_info, status):
         data = aac_preview.process(data)
 
     data = normalizer.process(data, audio_state.lufs_s)
+    audio_state.normalizer_gain_db = normalizer.gain_db
+
     data = limiter.process(data)
 
     outdata[:] = data

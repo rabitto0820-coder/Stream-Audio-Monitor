@@ -56,6 +56,14 @@ class MainWindow(QMainWindow):
 
         self.status = QLabel("Status: Ready")
 
+        self.normalizer_gain_indicator = QLabel("Normalize: 0.0 dB")
+        self.normalizer_gain_indicator.setStyleSheet(
+            """
+            background: #203a4a; color: #b8e8ff;
+            padding: 6px; border-radius: 4px;
+            """
+        )
+
         self.clip_indicator = QLabel("CLIP: 0")
         self.clip_indicator.setStyleSheet(
             """
@@ -69,6 +77,7 @@ class MainWindow(QMainWindow):
 
         status_row.addWidget(self.status)
         status_row.addStretch()
+        status_row.addWidget(self.normalizer_gain_indicator)
         status_row.addWidget(self.clip_indicator)
         status_row.addWidget(self.clear_clip_button)
 
@@ -457,6 +466,10 @@ class MainWindow(QMainWindow):
 
         self.clip_indicator.setText(
             f"CLIP: {audio_state.clip_count}"
+        )
+
+        self.normalizer_gain_indicator.setText(
+            f"Normalize: {audio_state.normalizer_gain_db:+.1f} dB"
         )
 
         if time.monotonic() < audio_state.clip_hold_until:
