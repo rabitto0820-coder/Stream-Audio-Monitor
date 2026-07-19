@@ -8,49 +8,32 @@ from PyQt6.QtWidgets import QWidget
 class AudioMeter(QWidget):
     def __init__(self, name):
         super().__init__()
-
         self.name = name
         self.level = -60.0
         self.hold_level = -60.0
-
         self.setMinimumHeight(50)
 
     def set_level(self, value):
         self.level = max(-60.0, min(0.0, float(value)))
-
-        if self.level > self.hold_level:
-            self.hold_level = self.level
-        else:
-            self.hold_level -= 0.3
-
-        if self.hold_level < self.level:
-            self.hold_level = self.level
-
+        self.hold_level = max(
+            self.level,
+            self.hold_level - 0.3
+        )
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        width, height = self.width(), self.height()
 
-        width = self.width()
-        height = self.height()
+        painter.fillRect(0, 0, width, height, QColor("#202124"))
 
-        painter.fillRect(
-            0,
-            0,
-            width,
-            height,
-            QColor("#202124")
-        )
+        ratio = max(0.0, min(1.0, (self.level + 60.0) / 60.0))
 
-        ratio = (self.level + 60.0) / 60.0
-        ratio = max(0.0, min(1.0, ratio))
-
+        color = QColor("#00ff66")
         if self.level > -3:
             color = QColor("#ff3333")
         elif self.level > -12:
             color = QColor("#ffd633")
-        else:
-            color = QColor("#00ff66")
 
         painter.fillRect(
             0,
@@ -60,8 +43,10 @@ class AudioMeter(QWidget):
             color
         )
 
-        hold_ratio = (self.hold_level + 60.0) / 60.0
-        hold_ratio = max(0.0, min(1.0, hold_ratio))
+        hold_ratio = max(
+            0.0,
+            min(1.0, (self.hold_level + 60.0) / 60.0)
+        )
 
         painter.fillRect(
             int(width * hold_ratio) - 1,
@@ -81,31 +66,18 @@ class AudioMeter(QWidget):
 
 
 class CorrelationWidget(QWidget):
-    """Stereo correlation meter: -1.00 is opposite phase, +1.00 is in phase."""
-
     def __init__(self):
         super().__init__()
-
         self.value = 0.0
-
         self.setMinimumHeight(70)
 
     def set_correlation(self, value):
-        self.value = max(
-            -1.0,
-            min(
-                1.0,
-                float(value)
-            )
-        )
-
+        self.value = max(-1.0, min(1.0, float(value)))
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-
-        width = self.width()
-        height = self.height()
+        width, height = self.width(), self.height()
 
         center = width // 2
 
@@ -164,28 +136,192 @@ class CorrelationWidget(QWidget):
         )
 
         painter.drawText(
-            10,
-            height - 8,
-            "-1"
-        )
-
-        painter.drawText(
-            center - 5,
-            height - 8,
-            "0"
-        )
-
-        painter.drawText(
-            width - 22,
-            height - 8,
-            "+1"
-        )
-
-        painter.drawText(
             width - 115,
             20,
             f"{self.value:+.2f}"
         )
+
+
+class PhaseScopeWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.samples = np.zeros((0, 2), dtype=np.float32)
+        self.setMinimumHeight(220)
+
+    def set_samples(self, samples):
+        data = np.asarray(samples, dtype=np.float32)
+
+        if data.ndim == 2 and data.shape[1] >= 2:
+            self.samples = data[::8, :2].copy()
+        else:
+            self.samples = np.zeros((0, 2), dtype=np.float32)
+
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        width, height = self.width(), self.height()
+
+        center_x = width / 2.0
+        center_y = height / 2.0
+        radius = min(width, height) * 0.42
+
+        painter.fillRect(
+            0,
+            0,
+            width,
+            height,
+            QColor("#181818")
+        )
+
+        painter.setPen(QColor("#303030"))
+
+        painter.drawLine(
+            0,
+            int(center_y),
+            width,
+            int(center_y)
+        )
+
+        painter.drawLine(
+            int(center_x),
+            0,
+            int(center_x),
+            height
+        )
+
+        painter.drawEllipse(
+            int(center_x - radius),
+            int(center_y - radius),
+            int(radius * 2),
+            int(radius * 2)
+        )
+
+        painter.setPen(QColor("#aaaaaa"))
+
+        painter.drawText(
+            10,
+            20,
+            "Phase Scope (L / R)"
+        )
+
+        painter.setPen(QColor("#00ff88"))
+
+        for left, right in self.samples:
+            x = int(
+                center_x
+                +
+                np.clip(left, -1.0, 1.0)
+                *
+                radius
+            )
+
+            y = int(
+                center_y
+                -
+                np.clip(right, -1.0, 1.0)
+                *
+                radius
+            )
+
+            painter.drawPoint(x, y)
+
+
+class WaveformWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.samples = np.zeros((0, 2), dtype=np.float32)
+        self.setMinimumHeight(180)
+
+    def set_samples(self, samples):
+        data = np.asarray(samples, dtype=np.float32)
+
+        if data.ndim == 2 and data.shape[1] >= 2:
+            self.samples = data[:, :2].copy()
+        else:
+            self.samples = np.zeros((0, 2), dtype=np.float32)
+
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        width, height = self.width(), self.height()
+
+        half_height = height // 2
+
+        painter.fillRect(
+            0,
+            0,
+            width,
+            height,
+            QColor("#181818")
+        )
+
+        painter.setPen(QColor("#303030"))
+
+        painter.drawLine(
+            0,
+            half_height // 2,
+            width,
+            half_height // 2
+        )
+
+        painter.drawLine(
+            0,
+            half_height + half_height // 2,
+            width,
+            half_height + half_height // 2
+        )
+
+        painter.setPen(QColor("#aaaaaa"))
+
+        painter.drawText(
+            10,
+            20,
+            "Waveform  L / R"
+        )
+
+        if len(self.samples) < 2:
+            return
+
+        for channel, offset, color in (
+            (0, 0, QColor("#00d8ff")),
+            (1, half_height, QColor("#00ff88")),
+        ):
+            painter.setPen(color)
+
+            previous = None
+
+            for index, value in enumerate(
+                self.samples[:, channel]
+            ):
+                x = int(
+                    index
+                    *
+                    (width - 1)
+                    /
+                    (len(self.samples) - 1)
+                )
+
+                y = int(
+                    offset
+                    +
+                    half_height / 2
+                    -
+                    np.clip(value, -1.0, 1.0)
+                    *
+                    (half_height * 0.42)
+                )
+
+                if previous is not None:
+                    painter.drawLine(
+                        previous[0],
+                        previous[1],
+                        x,
+                        y
+                    )
+
+                previous = (x, y)
 
 
 class SpectrumWidget(QWidget):
@@ -198,11 +334,6 @@ class SpectrumWidget(QWidget):
         )
 
         self.display = np.zeros(
-            512,
-            dtype=np.float32
-        )
-
-        self.peak = np.zeros(
             512,
             dtype=np.float32
         )
@@ -221,18 +352,11 @@ class SpectrumWidget(QWidget):
             self.spectrum * 0.2
         )
 
-        self.peak = np.maximum(
-            self.peak * 0.97,
-            self.display
-        )
-
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-
-        width = self.width()
-        height = self.height()
+        width, height = self.width(), self.height()
 
         painter.fillRect(
             0,
@@ -241,36 +365,6 @@ class SpectrumWidget(QWidget):
             height,
             QColor("#181818")
         )
-
-        painter.setPen(QColor("#303030"))
-
-        for db in [-60, -40, -20, -10, -3]:
-            y = int(
-                height
-                -
-                35
-                -
-                ((db + 60) / 60)
-                *
-                (height - 60)
-            )
-
-            painter.drawLine(
-                0,
-                y,
-                width,
-                y
-            )
-
-            painter.setPen(QColor("#aaaaaa"))
-
-            painter.drawText(
-                5,
-                y - 3,
-                f"{db} dB"
-            )
-
-            painter.setPen(QColor("#303030"))
 
         painter.setPen(Qt.GlobalColor.white)
 
@@ -284,17 +378,20 @@ class SpectrumWidget(QWidget):
 
         for index in range(bars):
             spectrum_index = int(
-                (index / bars)
+                index
                 *
                 len(self.display)
+                /
+                bars
             )
 
             value = self.display[spectrum_index]
 
-            if value > 0:
-                db = 20 * np.log10(value)
-            else:
-                db = -60
+            db = (
+                20 * np.log10(value)
+                if value > 0
+                else -60
+            )
 
             db = max(-60, min(0, db))
 
@@ -303,55 +400,23 @@ class SpectrumWidget(QWidget):
             bar_height = int(
                 ratio
                 *
-                (height - 60)
+                (height - 40)
             )
 
-            x = int(
-                index
-                *
-                width
-                /
-                bars
-            )
+            x = int(index * width / bars)
+            bar_width = max(3, width // bars - 3)
 
-            bar_width = max(
-                3,
-                width // bars - 3
-            )
-
-            y = height - bar_height - 30
+            color = QColor("#00ff66")
 
             if db > -6:
                 color = QColor("#ff3333")
             elif db > -20:
                 color = QColor("#ffd633")
-            else:
-                color = QColor("#00ff66")
 
             painter.fillRect(
                 x,
-                y,
+                height - bar_height - 10,
                 bar_width,
                 bar_height,
                 color
             )
-
-        painter.setPen(QColor("#aaaaaa"))
-
-        painter.drawText(
-            10,
-            height - 10,
-            "20Hz"
-        )
-
-        painter.drawText(
-            width // 2 - 20,
-            height - 10,
-            "1kHz"
-        )
-
-        painter.drawText(
-            width - 60,
-            height - 10,
-            "20kHz"
-        )

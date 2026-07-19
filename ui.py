@@ -4,20 +4,19 @@ import sounddevice as sd
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QMainWindow,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
+    QCheckBox, QComboBox, QFrame, QHBoxLayout,
+    QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget,
 )
 
 from audio_state import audio_state
 from settings import load_settings, save_settings
-from widgets import AudioMeter, CorrelationWidget, SpectrumWidget
+from widgets import (
+    AudioMeter,
+    CorrelationWidget,
+    PhaseScopeWidget,
+    SpectrumWidget,
+    WaveformWidget,
+)
 
 
 class MainWindow(QMainWindow):
@@ -36,18 +35,16 @@ class MainWindow(QMainWindow):
         self.limiter_ceiling_values = [-1.0, -2.0, -3.0]
 
         self.setWindowTitle("Stream Audio Monitor")
-        self.resize(1100, 900)
+        self.resize(1100, 1200)
 
         self.setStyleSheet(
             """
             QMainWindow { background: #181818; }
             QLabel { color: #f1f1f1; font-size: 12pt; }
             QComboBox, QPushButton {
-                background: #303030;
-                color: #f1f1f1;
+                background: #303030; color: #f1f1f1;
                 border: 1px solid #555555;
-                border-radius: 4px;
-                padding: 6px;
+                border-radius: 4px; padding: 6px;
             }
             QPushButton:hover { background: #444444; }
             QCheckBox { color: #f1f1f1; }
@@ -64,9 +61,10 @@ class MainWindow(QMainWindow):
         title = QLabel("Stream Audio Monitor")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 22pt; font-weight: bold;")
-        layout.addWidget(title)
 
+        layout.addWidget(title)
         layout.addWidget(self.create_settings_panel())
+
         self.create_meters(layout)
 
         status_row = QHBoxLayout()
@@ -76,10 +74,8 @@ class MainWindow(QMainWindow):
         self.clip_indicator = QLabel("CLIP: 0")
         self.clip_indicator.setStyleSheet(
             """
-            background: #304030;
-            color: #baffba;
-            padding: 6px;
-            border-radius: 4px;
+            background: #304030; color: #baffba;
+            padding: 6px; border-radius: 4px;
             """
         )
 
@@ -121,20 +117,13 @@ class MainWindow(QMainWindow):
             self.opus_bitrate_box.addItem(f"{value} kbps")
 
         for value in self.limiter_ceiling_values:
-            self.limiter_ceiling_box.addItem(
-                f"{value:.0f} dBFS"
-            )
+            self.limiter_ceiling_box.addItem(f"{value:.0f} dBFS")
 
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
 
-        self.youtube_checkbox = QCheckBox(
-            "YouTube Opus Preview"
-        )
-
-        self.limiter_checkbox = QCheckBox(
-            "Safety Limiter"
-        )
+        self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
+        self.limiter_checkbox = QCheckBox("Safety Limiter")
 
         self.load_devices()
 
@@ -142,17 +131,14 @@ class MainWindow(QMainWindow):
             self.opus_bitrate_values.index(128)
         )
 
-        layout.addWidget(QLabel("Input"))
-        layout.addWidget(self.input_box, 2)
-
-        layout.addWidget(QLabel("Output"))
-        layout.addWidget(self.output_box, 2)
-
-        layout.addWidget(QLabel("Rate"))
-        layout.addWidget(self.rate_box)
-
-        layout.addWidget(QLabel("Buffer"))
-        layout.addWidget(self.buffer_box)
+        for label, widget, stretch in (
+            ("Input", self.input_box, 2),
+            ("Output", self.output_box, 2),
+            ("Rate", self.rate_box, 0),
+            ("Buffer", self.buffer_box, 0),
+        ):
+            layout.addWidget(QLabel(label))
+            layout.addWidget(widget, stretch)
 
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
@@ -168,18 +154,12 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
 
-        self.youtube_checkbox.toggled.connect(
-            self.toggle_opus
-        )
-
+        self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
         )
 
-        self.limiter_checkbox.toggled.connect(
-            self.toggle_limiter
-        )
-
+        self.limiter_checkbox.toggled.connect(self.toggle_limiter)
         self.limiter_ceiling_box.currentIndexChanged.connect(
             self.change_limiter_ceiling
         )
@@ -196,9 +176,11 @@ class MainWindow(QMainWindow):
         self.lufs_i_meter = AudioMeter("LUFS-I")
 
         self.correlation_meter = CorrelationWidget()
+        self.phase_scope = PhaseScopeWidget()
+        self.waveform = WaveformWidget()
         self.spectrum = SpectrumWidget()
 
-        for meter in (
+        for widget in (
             self.peak_meter,
             self.true_peak_meter,
             self.rms_meter,
@@ -206,9 +188,11 @@ class MainWindow(QMainWindow):
             self.lufs_s_meter,
             self.lufs_i_meter,
             self.correlation_meter,
+            self.phase_scope,
+            self.waveform,
             self.spectrum,
         ):
-            layout.addWidget(meter)
+            layout.addWidget(widget)
 
     def load_devices(self):
         devices = sd.query_devices()
@@ -231,37 +215,27 @@ class MainWindow(QMainWindow):
 
         if saved.get("input_device") in self.input_devices:
             self.input_box.setCurrentIndex(
-                self.input_devices.index(
-                    saved["input_device"]
-                )
+                self.input_devices.index(saved["input_device"])
             )
 
         if saved.get("output_device") in self.output_devices:
             self.output_box.setCurrentIndex(
-                self.output_devices.index(
-                    saved["output_device"]
-                )
+                self.output_devices.index(saved["output_device"])
             )
 
         if saved.get("samplerate") in self.rate_values:
             self.rate_box.setCurrentIndex(
-                self.rate_values.index(
-                    saved["samplerate"]
-                )
+                self.rate_values.index(saved["samplerate"])
             )
 
         if saved.get("blocksize") in self.buffer_values:
             self.buffer_box.setCurrentIndex(
-                self.buffer_values.index(
-                    saved["blocksize"]
-                )
+                self.buffer_values.index(saved["blocksize"])
             )
 
     def start_audio(self):
         if not self.input_devices or not self.output_devices:
-            self.status.setText(
-                "Status: No usable audio device found"
-            )
+            self.status.setText("Status: No usable audio device found")
             return
 
         input_device = self.input_devices[
@@ -376,32 +350,24 @@ class MainWindow(QMainWindow):
         self.clip_indicator.setText("CLIP: 0")
 
     def update_gui(self):
-        self.peak_meter.set_level(
-            audio_state.peak_db
-        )
+        self.peak_meter.set_level(audio_state.peak_db)
+        self.true_peak_meter.set_level(audio_state.true_peak_db)
+        self.rms_meter.set_level(audio_state.rms_db)
 
-        self.true_peak_meter.set_level(
-            audio_state.true_peak_db
-        )
-
-        self.rms_meter.set_level(
-            audio_state.rms_db
-        )
-
-        self.lufs_m_meter.set_level(
-            audio_state.lufs_m
-        )
-
-        self.lufs_s_meter.set_level(
-            audio_state.lufs_s
-        )
-
-        self.lufs_i_meter.set_level(
-            audio_state.lufs_i
-        )
+        self.lufs_m_meter.set_level(audio_state.lufs_m)
+        self.lufs_s_meter.set_level(audio_state.lufs_s)
+        self.lufs_i_meter.set_level(audio_state.lufs_i)
 
         self.correlation_meter.set_correlation(
             audio_state.correlation
+        )
+
+        self.phase_scope.set_samples(
+            audio_state.last_audio
+        )
+
+        self.waveform.set_samples(
+            audio_state.last_audio
         )
 
         self.spectrum.set_spectrum(
@@ -415,19 +381,14 @@ class MainWindow(QMainWindow):
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(
                 """
-                background: #8b1e1e;
-                color: white;
-                padding: 6px;
-                border-radius: 4px;
+                background: #8b1e1e; color: white;
+                padding: 6px; border-radius: 4px;
                 """
             )
-
         else:
             self.clip_indicator.setStyleSheet(
                 """
-                background: #304030;
-                color: #baffba;
-                padding: 6px;
-                border-radius: 4px;
+                background: #304030; color: #baffba;
+                padding: 6px; border-radius: 4px;
                 """
             )
