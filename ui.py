@@ -1,5 +1,7 @@
 import time
 
+import sounddevice as sd
+
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -12,8 +14,6 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-import sounddevice as sd
 
 from audio_state import audio_state
 from settings import load_settings, save_settings
@@ -32,24 +32,16 @@ class MainWindow(QMainWindow):
 
         self.rate_values = [44100, 48000, 96000]
         self.buffer_values = [256, 512, 1024, 2048, 4096]
-
         self.opus_bitrate_values = [96, 128, 160]
         self.limiter_ceiling_values = [-1.0, -2.0, -3.0]
 
         self.setWindowTitle("Stream Audio Monitor")
-        self.resize(1100, 820)
+        self.resize(1100, 900)
 
         self.setStyleSheet(
             """
-            QMainWindow {
-                background: #181818;
-            }
-
-            QLabel {
-                color: #f1f1f1;
-                font-size: 12pt;
-            }
-
+            QMainWindow { background: #181818; }
+            QLabel { color: #f1f1f1; font-size: 12pt; }
             QComboBox, QPushButton {
                 background: #303030;
                 color: #f1f1f1;
@@ -57,19 +49,9 @@ class MainWindow(QMainWindow):
                 border-radius: 4px;
                 padding: 6px;
             }
-
-            QPushButton:hover {
-                background: #444444;
-            }
-
-            QCheckBox {
-                color: #f1f1f1;
-            }
-
-            QFrame {
-                background: #242424;
-                border-radius: 8px;
-            }
+            QPushButton:hover { background: #444444; }
+            QCheckBox { color: #f1f1f1; }
+            QFrame { background: #242424; border-radius: 8px; }
             """
         )
 
@@ -81,17 +63,11 @@ class MainWindow(QMainWindow):
 
         title = QLabel("Stream Audio Monitor")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet(
-            "font-size: 22pt; font-weight: bold;"
-        )
-
+        title.setStyleSheet("font-size: 22pt; font-weight: bold;")
         layout.addWidget(title)
 
-        layout.addWidget(
-            self._create_settings_panel()
-        )
-
-        self._create_meters(layout)
+        layout.addWidget(self.create_settings_panel())
+        self.create_meters(layout)
 
         status_row = QHBoxLayout()
 
@@ -107,13 +83,8 @@ class MainWindow(QMainWindow):
             """
         )
 
-        self.clear_clip_button = QPushButton(
-            "Clear Clip"
-        )
-
-        self.clear_clip_button.clicked.connect(
-            self.clear_clip
-        )
+        self.clear_clip_button = QPushButton("Clear Clip")
+        self.clear_clip_button.clicked.connect(self.clear_clip)
 
         status_row.addWidget(self.status)
         status_row.addStretch()
@@ -126,12 +97,9 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.update_gui)
         self.timer.start(16)
 
-        QTimer.singleShot(
-            500,
-            self.start_audio
-        )
+        QTimer.singleShot(500, self.start_audio)
 
-    def _create_settings_panel(self):
+    def create_settings_panel(self):
         frame = QFrame()
         layout = QHBoxLayout(frame)
 
@@ -144,19 +112,13 @@ class MainWindow(QMainWindow):
         self.limiter_ceiling_box = QComboBox()
 
         for value in self.rate_values:
-            self.rate_box.addItem(
-                f"{value} Hz"
-            )
+            self.rate_box.addItem(f"{value} Hz")
 
         for value in self.buffer_values:
-            self.buffer_box.addItem(
-                str(value)
-            )
+            self.buffer_box.addItem(str(value))
 
         for value in self.opus_bitrate_values:
-            self.opus_bitrate_box.addItem(
-                f"{value} kbps"
-            )
+            self.opus_bitrate_box.addItem(f"{value} kbps")
 
         for value in self.limiter_ceiling_values:
             self.limiter_ceiling_box.addItem(
@@ -196,22 +158,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.stop_button)
 
         layout.addWidget(self.youtube_checkbox)
-
         layout.addWidget(QLabel("Opus"))
         layout.addWidget(self.opus_bitrate_box)
 
         layout.addWidget(self.limiter_checkbox)
-
         layout.addWidget(QLabel("Ceiling"))
         layout.addWidget(self.limiter_ceiling_box)
 
-        self.start_button.clicked.connect(
-            self.start_audio
-        )
-
-        self.stop_button.clicked.connect(
-            self.stop_audio
-        )
+        self.start_button.clicked.connect(self.start_audio)
+        self.stop_button.clicked.connect(self.stop_audio)
 
         self.youtube_checkbox.toggled.connect(
             self.toggle_opus
@@ -231,7 +186,7 @@ class MainWindow(QMainWindow):
 
         return frame
 
-    def _create_meters(self, layout):
+    def create_meters(self, layout):
         self.peak_meter = AudioMeter("Peak")
         self.true_peak_meter = AudioMeter("True Peak")
         self.rms_meter = AudioMeter("RMS")
@@ -241,7 +196,6 @@ class MainWindow(QMainWindow):
         self.lufs_i_meter = AudioMeter("LUFS-I")
 
         self.correlation_meter = CorrelationWidget()
-
         self.spectrum = SpectrumWidget()
 
         for meter in (
@@ -264,17 +218,11 @@ class MainWindow(QMainWindow):
 
             if device["max_input_channels"] > 0:
                 self.input_devices.append(index)
-
-                self.input_box.addItem(
-                    f"{index}: {name}"
-                )
+                self.input_box.addItem(f"{index}: {name}")
 
             if device["max_output_channels"] > 0:
                 self.output_devices.append(index)
-
-                self.output_box.addItem(
-                    f"{index}: {name}"
-                )
+                self.output_box.addItem(f"{index}: {name}")
 
         saved = load_settings()
 
@@ -346,10 +294,9 @@ class MainWindow(QMainWindow):
             blocksize,
         )
 
-        if started:
-            self.status.setText("Status: Running")
-        else:
-            self.status.setText("Status: Audio error")
+        self.status.setText(
+            "Status: Running" if started else "Status: Audio error"
+        )
 
     def stop_audio(self):
         self.stop_stream()
@@ -361,14 +308,14 @@ class MainWindow(QMainWindow):
         audio.opus_simulation = enabled
 
         if enabled:
+            bitrate = self.current_opus_bitrate()
+
             print(
-                f"YouTube Opus Preview: ON "
-                f"({self.current_opus_bitrate()} kbps)"
+                f"YouTube Opus Preview: ON ({bitrate} kbps)"
             )
 
             self.status.setText(
-                f"Status: YouTube Opus Preview "
-                f"({self.current_opus_bitrate()} kbps)"
+                f"Status: YouTube Opus Preview ({bitrate} kbps)"
             )
 
         else:
@@ -379,18 +326,15 @@ class MainWindow(QMainWindow):
         import audio
 
         bitrate = self.current_opus_bitrate()
-
         audio.set_opus_bitrate(bitrate)
 
         print(
-            f"YouTube Opus Preview bitrate: "
-            f"{bitrate} kbps"
+            f"YouTube Opus Preview bitrate: {bitrate} kbps"
         )
 
         if self.youtube_checkbox.isChecked():
             self.status.setText(
-                f"Status: YouTube Opus Preview "
-                f"({bitrate} kbps)"
+                f"Status: YouTube Opus Preview ({bitrate} kbps)"
             )
 
     def current_opus_bitrate(self):
@@ -414,12 +358,10 @@ class MainWindow(QMainWindow):
         import audio
 
         ceiling = self.current_limiter_ceiling()
-
         audio.set_limiter_ceiling(ceiling)
 
         print(
-            f"Safety Limiter ceiling: "
-            f"{ceiling:.0f} dBFS"
+            f"Safety Limiter ceiling: {ceiling:.0f} dBFS"
         )
 
     def current_limiter_ceiling(self):
@@ -431,10 +373,7 @@ class MainWindow(QMainWindow):
         import audio
 
         audio.reset_clip_counter()
-
-        self.clip_indicator.setText(
-            "CLIP: 0"
-        )
+        self.clip_indicator.setText("CLIP: 0")
 
     def update_gui(self):
         self.peak_meter.set_level(
