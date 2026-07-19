@@ -108,6 +108,11 @@ def reset_clip_counter():
     audio_state.clip_hold_until = 0.0
 
 
+def reset_integrated_loudness():
+    loudness_meter.reset_integrated()
+    audio_state.lufs_i = -70.0
+
+
 def set_limiter_enabled(enabled):
     limiter.enabled = bool(enabled)
     limiter.reset()

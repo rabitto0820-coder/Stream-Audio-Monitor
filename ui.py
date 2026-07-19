@@ -77,12 +77,18 @@ class MainWindow(QMainWindow):
         self.clear_clip_button = QPushButton("Clear Clip")
         self.clear_clip_button.clicked.connect(self.clear_clip)
 
+        self.reset_lufs_button = QPushButton("Reset LUFS-I")
+        self.reset_lufs_button.clicked.connect(
+            self.reset_integrated_loudness
+        )
+
         status_row.addWidget(self.status)
         status_row.addStretch()
         status_row.addWidget(self.normalizer_gain_indicator)
         status_row.addWidget(self.headroom_indicator)
         status_row.addWidget(self.clip_indicator)
         status_row.addWidget(self.clear_clip_button)
+        status_row.addWidget(self.reset_lufs_button)
 
         layout.addLayout(status_row)
 
@@ -171,13 +177,8 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
 
-        self.youtube_checkbox.toggled.connect(
-            self.toggle_opus
-        )
-
-        self.aac_checkbox.toggled.connect(
-            self.toggle_aac
-        )
+        self.youtube_checkbox.toggled.connect(self.toggle_opus)
+        self.aac_checkbox.toggled.connect(self.toggle_aac)
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -441,6 +442,15 @@ class MainWindow(QMainWindow):
 
         audio.reset_clip_counter()
         self.clip_indicator.setText("CLIP: 0")
+
+    def reset_integrated_loudness(self):
+        import audio
+
+        audio.reset_integrated_loudness()
+        self.lufs_i_meter.set_level(-70.0)
+        self.status.setText("Status: Integrated LUFS reset")
+
+        print("Integrated LUFS: RESET")
 
     def update_headroom_indicator(self):
         headroom_db = -audio_state.true_peak_db
