@@ -30,6 +30,7 @@ class MainWindow(QMainWindow):
         self.buffer_values = [256, 512, 1024, 2048, 4096]
         self.opus_bitrate_values = [96, 128, 160]
         self.limiter_ceiling_values = [-1.0, -2.0, -3.0]
+        self.normalizer_target_values = [-14.0, -16.0, -23.0]
 
         self.setWindowTitle("Stream Audio Monitor")
         self.resize(1100, 1200)
@@ -92,6 +93,7 @@ class MainWindow(QMainWindow):
         self.opus_bitrate_box = QComboBox()
         self.limiter_ceiling_box = QComboBox()
         self.theme_box = QComboBox()
+        self.normalizer_target_box = QComboBox()
 
         for value in self.rate_values:
             self.rate_box.addItem(f"{value} Hz")
@@ -107,12 +109,16 @@ class MainWindow(QMainWindow):
 
         self.theme_box.addItems(theme_names())
 
+        for value in self.normalizer_target_values:
+            self.normalizer_target_box.addItem(f"{value:.0f} LUFS")
+
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
 
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
+        self.normalizer_checkbox = QCheckBox("Loudness Normalize")
 
         self.load_devices()
 
@@ -139,6 +145,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.opus_bitrate_box)
 
         layout.addWidget(self.limiter_checkbox)
+
+        layout.addWidget(self.normalizer_checkbox)
+        layout.addWidget(QLabel("Target"))
+        layout.addWidget(self.normalizer_target_box)
 
         layout.addWidget(QLabel("Ceiling"))
         layout.addWidget(self.limiter_ceiling_box)
@@ -167,6 +177,14 @@ class MainWindow(QMainWindow):
 
         self.limiter_ceiling_box.currentIndexChanged.connect(
             self.change_limiter_ceiling
+        )
+
+        self.normalizer_checkbox.toggled.connect(
+            self.toggle_normalizer
+        )
+
+        self.normalizer_target_box.currentIndexChanged.connect(
+            self.change_normalizer_target
         )
 
         self.theme_box.currentTextChanged.connect(
@@ -373,6 +391,34 @@ class MainWindow(QMainWindow):
     def current_limiter_ceiling(self):
         return self.limiter_ceiling_values[
             self.limiter_ceiling_box.currentIndex()
+        ]
+
+    def toggle_normalizer(self, enabled):
+        import audio
+
+        audio.set_normalizer_enabled(enabled)
+
+        state = "ON" if enabled else "OFF"
+        target = self.current_normalizer_target()
+
+        print(
+            f"Loudness Normalize: {state} ({target:.0f} LUFS)"
+        )
+
+    def change_normalizer_target(self, _index=None):
+        import audio
+
+        target = self.current_normalizer_target()
+
+        audio.set_normalizer_target(target)
+
+        print(
+            f"Loudness Normalize target: {target:.0f} LUFS"
+        )
+
+    def current_normalizer_target(self):
+        return self.normalizer_target_values[
+            self.normalizer_target_box.currentIndex()
         ]
 
     def change_theme(self, name):

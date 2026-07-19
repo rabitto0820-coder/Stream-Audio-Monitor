@@ -5,7 +5,7 @@ from scipy.signal import resample_poly
 
 from aac import AACPreview
 from audio_state import audio_state
-from effects import SafetyLimiter
+from effects import LoudnessNormalizer, SafetyLimiter
 from loudness import LoudnessMeter
 from youtube import YouTubeOpusPreview
 
@@ -35,6 +35,10 @@ limiter = SafetyLimiter(
     ceiling_db=-1.0
 )
 
+normalizer = LoudnessNormalizer(
+    target_lufs=-14.0
+)
+
 
 def configure_audio(new_sample_rate, channels=2):
     global sample_rate
@@ -62,6 +66,8 @@ def configure_audio(new_sample_rate, channels=2):
     limiter.configure(
         sample_rate=sample_rate
     )
+
+    normalizer.reset()
 
     audio_state.peak_db = -60.0
     audio_state.true_peak_db = -60.0
@@ -112,6 +118,15 @@ def set_limiter_ceiling(ceiling_db):
     )
 
 
+def set_normalizer_enabled(enabled):
+    normalizer.enabled = bool(enabled)
+    normalizer.reset()
+
+
+def set_normalizer_target(target_lufs):
+    normalizer.set_target(target_lufs)
+
+
 def _decibels(amplitude):
     if amplitude > 0:
         return 20.0 * np.log10(amplitude)
@@ -131,6 +146,7 @@ def callback(indata, outdata, frames, time_info, status):
     elif aac_simulation:
         data = aac_preview.process(data)
 
+    data = normalizer.process(data, audio_state.lufs_s)
     data = limiter.process(data)
 
     outdata[:] = data
@@ -144,8 +160,7 @@ def callback(indata, outdata, frames, time_info, status):
         denominator = float(
             np.sqrt(
                 np.sum(left ** 2)
-                *
-                np.sum(right ** 2)
+                * np.sum(right ** 2)
             )
         )
 
@@ -153,7 +168,6 @@ def callback(indata, outdata, frames, time_info, status):
             audio_state.correlation = float(
                 np.sum(left * right) / denominator
             )
-
         else:
             audio_state.correlation = 0.0
 
@@ -230,7 +244,6 @@ def callback(indata, outdata, frames, time_info, status):
         fft = fft / np.max(fft)
 
     audio_state.spectrum[:] = 0.0
-
     audio_state.spectrum[:min(512, len(fft))] = fft[:512]
 
     audio_state.last_audio = data

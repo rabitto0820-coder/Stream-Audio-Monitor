@@ -45,3 +45,28 @@ class SafetyLimiter:
             self.gain += (1.0 - self.gain) * release
 
         return np.clip(data * self.gain, -ceiling, ceiling)
+
+
+class LoudnessNormalizer:
+    """Slow gain rider that moves Short-term LUFS toward a target."""
+
+    def __init__(self, target_lufs=-14.0):
+        self.target_lufs = float(target_lufs)
+        self.enabled = False
+        self.gain_db = 0.0
+
+    def reset(self):
+        self.gain_db = 0.0
+
+    def set_target(self, target_lufs):
+        self.target_lufs = float(target_lufs)
+        self.reset()
+
+    def process(self, data, measured_lufs):
+        if not self.enabled or measured_lufs <= -69.0:
+            return data
+
+        desired_gain = np.clip(self.target_lufs - measured_lufs, -12.0, 12.0)
+        self.gain_db += np.clip(desired_gain - self.gain_db, -0.05, 0.05)
+
+        return data * (10.0 ** (self.gain_db / 20.0))
