@@ -3,6 +3,7 @@ import time
 import numpy as np
 from scipy.signal import resample_poly
 
+from aac import AACPreview
 from audio_state import audio_state
 from effects import SafetyLimiter
 from loudness import LoudnessMeter
@@ -10,6 +11,8 @@ from youtube import YouTubeOpusPreview
 
 
 opus_simulation = False
+aac_simulation = False
+
 sample_rate = 48000
 
 loudness_meter = LoudnessMeter(
@@ -18,6 +21,11 @@ loudness_meter = LoudnessMeter(
 )
 
 youtube_preview = YouTubeOpusPreview(
+    sample_rate=sample_rate,
+    channels=2
+)
+
+aac_preview = AACPreview(
     sample_rate=sample_rate,
     channels=2
 )
@@ -42,6 +50,11 @@ def configure_audio(new_sample_rate, channels=2):
     )
 
     youtube_preview.configure(
+        sample_rate=sample_rate,
+        channels=channels
+    )
+
+    aac_preview.configure(
         sample_rate=sample_rate,
         channels=channels
     )
@@ -71,6 +84,15 @@ def set_opus_bitrate(bitrate_kbps):
         channels=youtube_preview.channels,
         bitrate_kbps=bitrate_kbps,
     )
+
+
+def set_aac_simulation(enabled):
+    global aac_simulation, opus_simulation
+
+    aac_simulation = bool(enabled)
+
+    if aac_simulation:
+        opus_simulation = False
 
 
 def reset_clip_counter():
@@ -106,6 +128,9 @@ def callback(indata, outdata, frames, time_info, status):
     if opus_simulation:
         data = opus_filter(data)
 
+    elif aac_simulation:
+        data = aac_preview.process(data)
+
     data = limiter.process(data)
 
     outdata[:] = data
@@ -128,6 +153,7 @@ def callback(indata, outdata, frames, time_info, status):
             audio_state.correlation = float(
                 np.sum(left * right) / denominator
             )
+
         else:
             audio_state.correlation = 0.0
 

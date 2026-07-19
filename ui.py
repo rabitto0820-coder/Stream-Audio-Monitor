@@ -45,9 +45,10 @@ class MainWindow(QMainWindow):
         title = QLabel("Stream Audio Monitor")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet("font-size: 22pt; font-weight: bold;")
-        layout.addWidget(title)
 
+        layout.addWidget(title)
         layout.addWidget(self.create_settings_panel())
+
         self.create_meters(layout)
 
         status_row = QHBoxLayout()
@@ -84,6 +85,7 @@ class MainWindow(QMainWindow):
 
         self.input_box = QComboBox()
         self.output_box = QComboBox()
+
         self.rate_box = QComboBox()
         self.buffer_box = QComboBox()
 
@@ -109,6 +111,7 @@ class MainWindow(QMainWindow):
         self.stop_button = QPushButton("Stop")
 
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
+        self.aac_checkbox = QCheckBox("AAC Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
 
         self.load_devices()
@@ -130,10 +133,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.stop_button)
 
         layout.addWidget(self.youtube_checkbox)
+        layout.addWidget(self.aac_checkbox)
+
         layout.addWidget(QLabel("Opus"))
         layout.addWidget(self.opus_bitrate_box)
 
         layout.addWidget(self.limiter_checkbox)
+
         layout.addWidget(QLabel("Ceiling"))
         layout.addWidget(self.limiter_ceiling_box)
 
@@ -143,12 +149,22 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
 
-        self.youtube_checkbox.toggled.connect(self.toggle_opus)
+        self.youtube_checkbox.toggled.connect(
+            self.toggle_opus
+        )
+
+        self.aac_checkbox.toggled.connect(
+            self.toggle_aac
+        )
+
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
         )
 
-        self.limiter_checkbox.toggled.connect(self.toggle_limiter)
+        self.limiter_checkbox.toggled.connect(
+            self.toggle_limiter
+        )
+
         self.limiter_ceiling_box.currentIndexChanged.connect(
             self.change_limiter_ceiling
         )
@@ -275,6 +291,12 @@ class MainWindow(QMainWindow):
         audio.opus_simulation = enabled
 
         if enabled:
+            audio.set_aac_simulation(False)
+
+            self.aac_checkbox.blockSignals(True)
+            self.aac_checkbox.setChecked(False)
+            self.aac_checkbox.blockSignals(False)
+
             bitrate = self.current_opus_bitrate()
 
             print(
@@ -289,10 +311,31 @@ class MainWindow(QMainWindow):
             print("YouTube Opus Preview: OFF")
             self.status.setText("Status: Running")
 
+    def toggle_aac(self, enabled):
+        import audio
+
+        audio.set_aac_simulation(enabled)
+
+        if enabled:
+            self.youtube_checkbox.blockSignals(True)
+            self.youtube_checkbox.setChecked(False)
+            self.youtube_checkbox.blockSignals(False)
+
+            print("AAC Preview: ON")
+
+            self.status.setText(
+                "Status: AAC Preview (Approximate)"
+            )
+
+        else:
+            print("AAC Preview: OFF")
+            self.status.setText("Status: Running")
+
     def change_opus_bitrate(self, _index=None):
         import audio
 
         bitrate = self.current_opus_bitrate()
+
         audio.set_opus_bitrate(bitrate)
 
         print(
@@ -320,6 +363,7 @@ class MainWindow(QMainWindow):
         import audio
 
         ceiling = self.current_limiter_ceiling()
+
         audio.set_limiter_ceiling(ceiling)
 
         print(
@@ -376,7 +420,6 @@ class MainWindow(QMainWindow):
                 padding: 6px; border-radius: 4px;
                 """
             )
-
         else:
             self.clip_indicator.setStyleSheet(
                 """
