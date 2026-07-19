@@ -56,6 +56,8 @@ class MainWindow(QMainWindow):
 
         self.status = QLabel("Status: Ready")
 
+        self.input_signal_indicator = QLabel("INPUT: SILENT")
+
         self.normalizer_gain_indicator = QLabel("Normalize: 0.0 dB")
         self.normalizer_gain_indicator.setStyleSheet(
             """
@@ -107,6 +109,7 @@ class MainWindow(QMainWindow):
 
         status_row.addWidget(self.status)
         status_row.addStretch()
+        status_row.addWidget(self.input_signal_indicator)
         status_row.addWidget(self.normalizer_gain_indicator)
         status_row.addWidget(self.youtube_gain_indicator)
         status_row.addWidget(self.headroom_indicator)
@@ -162,6 +165,7 @@ class MainWindow(QMainWindow):
 
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
+        self.mono_checkbox = QCheckBox("Mono Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
         self.normalizer_checkbox = QCheckBox("Loudness Normalize")
         self.youtube_normalize_checkbox = QCheckBox(
@@ -188,6 +192,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.youtube_checkbox)
         layout.addWidget(self.aac_checkbox)
+        layout.addWidget(self.mono_checkbox)
 
         layout.addWidget(QLabel("Opus"))
         layout.addWidget(self.opus_bitrate_box)
@@ -210,6 +215,7 @@ class MainWindow(QMainWindow):
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
+        self.mono_checkbox.toggled.connect(self.toggle_mono_preview)
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -397,6 +403,13 @@ class MainWindow(QMainWindow):
             print("AAC Preview: OFF")
             self.status.setText("Status: Running")
 
+    def toggle_mono_preview(self, enabled):
+        import audio
+
+        audio.set_mono_preview(enabled)
+        state = "ON" if enabled else "OFF"
+        print(f"Mono Preview: {state}")
+
     def change_opus_bitrate(self, _index=None):
         import audio
 
@@ -577,6 +590,31 @@ class MainWindow(QMainWindow):
 
         self.headroom_indicator.setStyleSheet(style)
 
+    def update_input_signal_indicator(self):
+        input_peak_db = audio_state.input_peak_db
+
+        if input_peak_db >= -40.0:
+            text = "INPUT: SIGNAL"
+            style = """
+                background: #1f5637; color: #d4ffdf;
+                padding: 6px; border-radius: 4px;
+            """
+        elif input_peak_db > -60.0:
+            text = "INPUT: LOW"
+            style = """
+                background: #66520e; color: #fff3b0;
+                padding: 6px; border-radius: 4px;
+            """
+        else:
+            text = "INPUT: SILENT"
+            style = """
+                background: #4a2525; color: #ffd6d6;
+                padding: 6px; border-radius: 4px;
+            """
+
+        self.input_signal_indicator.setText(text)
+        self.input_signal_indicator.setStyleSheet(style)
+
     def update_gui(self):
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
@@ -620,6 +658,7 @@ class MainWindow(QMainWindow):
         )
 
         self.update_headroom_indicator()
+        self.update_input_signal_indicator()
 
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(

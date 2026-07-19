@@ -16,6 +16,7 @@ from youtube import YouTubeOpusPreview
 
 opus_simulation = False
 aac_simulation = False
+mono_preview = False
 
 sample_rate = 48000
 
@@ -81,6 +82,7 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.youtube_gain_db = 0.0
 
     audio_state.peak_db = -60.0
+    audio_state.input_peak_db = -60.0
     audio_state.true_peak_db = -60.0
     audio_state.rms_db = -60.0
 
@@ -110,6 +112,12 @@ def set_aac_simulation(enabled):
 
     if aac_simulation:
         opus_simulation = False
+
+
+def set_mono_preview(enabled):
+    global mono_preview
+
+    mono_preview = bool(enabled)
 
 
 def reset_clip_counter():
@@ -164,6 +172,10 @@ def callback(indata, outdata, frames, time_info, status):
 
     data = indata.copy()
 
+    audio_state.input_peak_db = _decibels(
+        float(np.max(np.abs(data)))
+    )
+
     if opus_simulation:
         data = opus_filter(data)
 
@@ -183,6 +195,10 @@ def callback(indata, outdata, frames, time_info, status):
     audio_state.normalizer_gain_db = normalizer.gain_db
 
     data = limiter.process(data)
+
+    if mono_preview and data.shape[1] >= 2:
+        mono = np.mean(data, axis=1, keepdims=True)
+        data = np.repeat(mono, data.shape[1], axis=1)
 
     outdata[:] = data
 
