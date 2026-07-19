@@ -5,12 +5,14 @@ import numpy as np
 
 class AudioState:
     def __init__(self):
+        self.input_peak_db = -60.0
         self.peak_db = -60.0
         self.true_peak_db = -60.0
 
         self.lufs_m = -70.0
         self.lufs_s = -70.0
         self.lufs_i = -70.0
+        self.lufs_measurement_seconds = 0.0
         self.normalizer_gain_db = 0.0
         self.youtube_gain_db = 0.0
 

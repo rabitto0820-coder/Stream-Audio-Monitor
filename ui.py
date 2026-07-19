@@ -58,6 +58,8 @@ class MainWindow(QMainWindow):
 
         self.input_signal_indicator = QLabel("INPUT: SILENT")
 
+        self.lufs_time_indicator = QLabel("LUFS: 00:00")
+
         self.normalizer_gain_indicator = QLabel("Normalize: 0.0 dB")
         self.normalizer_gain_indicator.setStyleSheet(
             """
@@ -110,6 +112,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.status)
         status_row.addStretch()
         status_row.addWidget(self.input_signal_indicator)
+        status_row.addWidget(self.lufs_time_indicator)
         status_row.addWidget(self.normalizer_gain_indicator)
         status_row.addWidget(self.youtube_gain_indicator)
         status_row.addWidget(self.headroom_indicator)
@@ -615,6 +618,13 @@ class MainWindow(QMainWindow):
         self.input_signal_indicator.setText(text)
         self.input_signal_indicator.setStyleSheet(style)
 
+    def update_lufs_time_indicator(self):
+        total_seconds = int(audio_state.lufs_measurement_seconds)
+        minutes, seconds = divmod(total_seconds, 60)
+        self.lufs_time_indicator.setText(
+            f"LUFS: {minutes:02d}:{seconds:02d}"
+        )
+
     def update_gui(self):
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
@@ -659,6 +669,7 @@ class MainWindow(QMainWindow):
 
         self.update_headroom_indicator()
         self.update_input_signal_indicator()
+        self.update_lufs_time_indicator()
 
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(

@@ -89,6 +89,7 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.lufs_m = -70.0
     audio_state.lufs_s = -70.0
     audio_state.lufs_i = -70.0
+    audio_state.lufs_measurement_seconds = 0.0
 
     reset_clip_counter()
 
@@ -129,6 +130,7 @@ def reset_clip_counter():
 def reset_integrated_loudness():
     loudness_meter.reset_integrated()
     audio_state.lufs_i = -70.0
+    audio_state.lufs_measurement_seconds = 0.0
 
 
 def set_limiter_enabled(enabled):
@@ -187,6 +189,7 @@ def callback(indata, outdata, frames, time_info, status):
         audio_state.lufs_s,
         audio_state.lufs_i,
     ) = loudness_meter.process(data)
+    audio_state.lufs_measurement_seconds += frames / sample_rate
 
     data = youtube_normalizer.process(data, audio_state.lufs_i)
     audio_state.youtube_gain_db = youtube_normalizer.gain_db
