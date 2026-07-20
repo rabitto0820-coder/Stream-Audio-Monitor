@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 )
 
 from audio_state import audio_state
+from aac_exporter import export_aac_preview
 from file_analyzer import analyze_wav, compare_wavs
 from opus_exporter import export_opus_preview, export_youtube_ab_previews
 from settings import load_settings, save_settings
@@ -176,6 +177,7 @@ class MainWindow(QMainWindow):
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.compare_wav_button = QPushButton("Compare WAV")
         self.export_opus_button = QPushButton("Export Opus WAV")
+        self.export_aac_button = QPushButton("Export AAC WAV")
         self.export_youtube_ab_button = QPushButton("Export YouTube A/B")
         self.youtube_volume_export_checkbox = QCheckBox(
             "Apply YouTube Volume"
@@ -212,6 +214,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.analyze_wav_button)
         layout.addWidget(self.compare_wav_button)
         layout.addWidget(self.export_opus_button)
+        layout.addWidget(self.export_aac_button)
         layout.addWidget(self.export_youtube_ab_button)
         layout.addWidget(self.youtube_volume_export_checkbox)
 
@@ -241,6 +244,7 @@ class MainWindow(QMainWindow):
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.compare_wav_button.clicked.connect(self.compare_wav_files)
         self.export_opus_button.clicked.connect(self.export_opus_wav)
+        self.export_aac_button.clicked.connect(self.export_aac_wav)
         self.export_youtube_ab_button.clicked.connect(
             self.export_youtube_ab_wavs
         )
@@ -608,6 +612,57 @@ class MainWindow(QMainWindow):
         )
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "Opus Export", message)
+
+    def export_aac_wav(self):
+        source_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select source WAV",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not source_path:
+            return
+
+        default_path = source_path.rsplit(".", 1)[0] + "_aac_128k.wav"
+        destination_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save AAC preview WAV",
+            default_path,
+            "WAV files (*.wav)",
+        )
+
+        if not destination_path:
+            return
+
+        try:
+            analysis = analyze_wav(source_path)
+            playback_gain_db = (
+                analysis["youtube_gain_db"]
+                if self.youtube_volume_export_checkbox.isChecked()
+                else 0.0
+            )
+            self.status.setText("Status: Exporting AAC preview...")
+            output_path = export_aac_preview(
+                source_path,
+                destination_path,
+                bitrate_kbps=128,
+                playback_gain_db=playback_gain_db,
+            )
+        except (OSError, RuntimeError, ValueError) as error:
+            self.status.setText("Status: AAC export error")
+            QMessageBox.warning(self, "AAC Export", str(error))
+            return
+
+        self.status.setText("Status: AAC preview exported")
+        message = (
+            "Created AAC preview WAV\n\n"
+            "Bitrate: 128 kbps\n"
+            f"YouTube gain: {playback_gain_db:+.1f} dB\n"
+            f"File: {output_path}"
+        )
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "AAC Export", message)
 
     def export_youtube_ab_wavs(self):
         source_path, _ = QFileDialog.getOpenFileName(
