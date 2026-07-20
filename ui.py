@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 )
 
 from audio_state import audio_state
-from file_analyzer import analyze_wav
+from file_analyzer import analyze_wav, compare_wavs
 from opus_exporter import export_opus_preview, export_youtube_ab_previews
 from settings import load_settings, save_settings
 from themes import apply_theme, theme_names
@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.analyze_wav_button = QPushButton("Analyze WAV")
+        self.compare_wav_button = QPushButton("Compare WAV")
         self.export_opus_button = QPushButton("Export Opus WAV")
         self.export_youtube_ab_button = QPushButton("Export YouTube A/B")
         self.youtube_volume_export_checkbox = QCheckBox(
@@ -205,6 +206,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
         layout.addWidget(self.analyze_wav_button)
+        layout.addWidget(self.compare_wav_button)
         layout.addWidget(self.export_opus_button)
         layout.addWidget(self.export_youtube_ab_button)
         layout.addWidget(self.youtube_volume_export_checkbox)
@@ -232,6 +234,7 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
+        self.compare_wav_button.clicked.connect(self.compare_wav_files)
         self.export_opus_button.clicked.connect(self.export_opus_wav)
         self.export_youtube_ab_button.clicked.connect(
             self.export_youtube_ab_wavs
@@ -414,6 +417,54 @@ class MainWindow(QMainWindow):
         self.status.setText("Status: WAV analysis complete")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Analysis", message)
+
+    def compare_wav_files(self):
+        reference_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select original WAV",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not reference_path:
+            return
+
+        preview_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Opus or YouTube preview WAV",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not preview_path:
+            return
+
+        try:
+            self.status.setText("Status: Comparing WAV files...")
+            result = compare_wavs(reference_path, preview_path)
+        except (OSError, ValueError) as error:
+            self.status.setText("Status: WAV comparison error")
+            QMessageBox.warning(self, "WAV Comparison", str(error))
+            return
+
+        reference = result["reference"]
+        preview = result["preview"]
+        message = (
+            "WAV comparison\n\n"
+            f"Original: {reference['name']}\n"
+            f"Preview: {preview['name']}\n\n"
+            f"Integrated LUFS difference: {result['lufs_difference_db']:+.1f} dB\n"
+            f"Peak difference: {result['peak_difference_db']:+.1f} dB\n"
+            f"Presence (4–8 kHz): {result['presence_difference_db']:+.1f} dB\n"
+            f"High range (8–16 kHz): {result['high_band_difference_db']:+.1f} dB\n"
+            f"Duration difference: {result['duration_difference_seconds']:+.3f} sec\n\n"
+            "A negative high-range value means the preview contains less "
+            "energy in that band. Use it as a comparison guide, not a score."
+        )
+
+        self.status.setText("Status: WAV comparison complete")
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "WAV Comparison", message)
 
     def export_opus_wav(self):
         source_path, _ = QFileDialog.getOpenFileName(
