@@ -3,8 +3,9 @@ import sounddevice as sd
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QFrame, QFileDialog, QHBoxLayout,
-    QLabel, QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
+    QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
+    QVBoxLayout, QWidget,
 )
 
 from audio_state import audio_state
@@ -54,9 +55,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(title)
         layout.addWidget(self.create_settings_panel())
 
-        self.create_meters(layout)
-
-        status_row = QHBoxLayout()
+        status_row = QGridLayout()
+        status_row.setHorizontalSpacing(8)
+        status_row.setVerticalSpacing(6)
 
         self.status = QLabel("Status: Ready")
 
@@ -115,22 +116,23 @@ class MainWindow(QMainWindow):
             self.apply_broadcast_preset
         )
 
-        status_row.addWidget(self.status)
-        status_row.addStretch()
-        status_row.addWidget(self.input_signal_indicator)
-        status_row.addWidget(self.lufs_time_indicator)
-        status_row.addWidget(self.codec_indicator)
-        status_row.addWidget(self.normalizer_gain_indicator)
-        status_row.addWidget(self.youtube_gain_indicator)
-        status_row.addWidget(self.headroom_indicator)
-        status_row.addWidget(self.clip_indicator)
-        status_row.addWidget(self.clear_clip_button)
-        status_row.addWidget(self.reset_lufs_button)
-        status_row.addWidget(self.youtube_preset_button)
-        status_row.addWidget(self.podcast_preset_button)
-        status_row.addWidget(self.broadcast_preset_button)
+        status_row.addWidget(self.status, 0, 0, 1, 2)
+        status_row.addWidget(self.input_signal_indicator, 0, 2)
+        status_row.addWidget(self.lufs_time_indicator, 0, 3)
+        status_row.addWidget(self.codec_indicator, 0, 4)
+        status_row.addWidget(self.normalizer_gain_indicator, 0, 5)
+        status_row.addWidget(self.youtube_gain_indicator, 0, 6)
+        status_row.addWidget(self.headroom_indicator, 0, 7)
+        status_row.addWidget(self.clip_indicator, 0, 8)
+        status_row.addWidget(self.clear_clip_button, 1, 0)
+        status_row.addWidget(self.reset_lufs_button, 1, 1)
+        status_row.addWidget(self.youtube_preset_button, 1, 2)
+        status_row.addWidget(self.podcast_preset_button, 1, 3)
+        status_row.addWidget(self.broadcast_preset_button, 1, 4)
 
         layout.addLayout(status_row)
+
+        self.create_meters(layout)
 
         self.restore_preview_settings()
 
@@ -142,7 +144,8 @@ class MainWindow(QMainWindow):
 
     def create_settings_panel(self):
         frame = QFrame()
-        layout = QHBoxLayout(frame)
+        layout = QVBoxLayout(frame)
+        layout.setSpacing(6)
 
         self.input_box = QComboBox()
         self.output_box = QComboBox()
@@ -187,6 +190,7 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.mono_checkbox = QCheckBox("Mono Preview")
+        self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
         self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
         self.normalizer_checkbox = QCheckBox("Loudness Normalize")
@@ -200,44 +204,52 @@ class MainWindow(QMainWindow):
             self.opus_bitrate_values.index(128)
         )
 
-        for label, widget, stretch in (
-            ("Input", self.input_box, 2),
-            ("Output", self.output_box, 2),
-            ("Rate", self.rate_box, 0),
-            ("Buffer", self.buffer_box, 0),
-        ):
-            layout.addWidget(QLabel(label))
-            layout.addWidget(widget, stretch)
+        device_row = QHBoxLayout()
+        device_row.addWidget(QLabel("Input"))
+        device_row.addWidget(self.input_box, 2)
+        device_row.addWidget(QLabel("Output"))
+        device_row.addWidget(self.output_box, 2)
+        device_row.addWidget(QLabel("Rate"))
+        device_row.addWidget(self.rate_box)
+        device_row.addWidget(QLabel("Buffer"))
+        device_row.addWidget(self.buffer_box)
+        device_row.addWidget(self.start_button)
+        device_row.addWidget(self.stop_button)
+        layout.addLayout(device_row)
 
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.stop_button)
-        layout.addWidget(self.analyze_wav_button)
-        layout.addWidget(self.compare_wav_button)
-        layout.addWidget(self.export_opus_button)
-        layout.addWidget(self.export_aac_button)
-        layout.addWidget(self.export_youtube_ab_button)
-        layout.addWidget(self.youtube_volume_export_checkbox)
+        export_row = QHBoxLayout()
+        export_row.addWidget(self.analyze_wav_button)
+        export_row.addWidget(self.compare_wav_button)
+        export_row.addWidget(self.export_opus_button)
+        export_row.addWidget(self.export_aac_button)
+        export_row.addWidget(self.export_youtube_ab_button)
+        export_row.addWidget(self.youtube_volume_export_checkbox)
+        export_row.addStretch()
+        layout.addLayout(export_row)
 
-        layout.addWidget(self.youtube_checkbox)
-        layout.addWidget(self.aac_checkbox)
-        layout.addWidget(self.mono_checkbox)
-        layout.addWidget(self.phone_speaker_checkbox)
+        preview_row = QHBoxLayout()
+        preview_row.addWidget(self.youtube_checkbox)
+        preview_row.addWidget(self.aac_checkbox)
+        preview_row.addWidget(self.mono_checkbox)
+        preview_row.addWidget(self.bass_mono_checkbox)
+        preview_row.addWidget(self.phone_speaker_checkbox)
+        preview_row.addWidget(QLabel("Opus"))
+        preview_row.addWidget(self.opus_bitrate_box)
+        preview_row.addStretch()
+        layout.addLayout(preview_row)
 
-        layout.addWidget(QLabel("Opus"))
-        layout.addWidget(self.opus_bitrate_box)
-
-        layout.addWidget(self.limiter_checkbox)
-
-        layout.addWidget(self.normalizer_checkbox)
-        layout.addWidget(self.youtube_normalize_checkbox)
-        layout.addWidget(QLabel("Target"))
-        layout.addWidget(self.normalizer_target_box)
-
-        layout.addWidget(QLabel("Ceiling"))
-        layout.addWidget(self.limiter_ceiling_box)
-
-        layout.addWidget(QLabel("Skin"))
-        layout.addWidget(self.theme_box)
+        processing_row = QHBoxLayout()
+        processing_row.addWidget(self.limiter_checkbox)
+        processing_row.addWidget(QLabel("Ceiling"))
+        processing_row.addWidget(self.limiter_ceiling_box)
+        processing_row.addWidget(self.normalizer_checkbox)
+        processing_row.addWidget(self.youtube_normalize_checkbox)
+        processing_row.addWidget(QLabel("Target"))
+        processing_row.addWidget(self.normalizer_target_box)
+        processing_row.addWidget(QLabel("Skin"))
+        processing_row.addWidget(self.theme_box)
+        processing_row.addStretch()
+        layout.addLayout(processing_row)
 
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
@@ -252,6 +264,9 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
         self.mono_checkbox.toggled.connect(self.toggle_mono_preview)
+        self.bass_mono_checkbox.toggled.connect(
+            self.toggle_bass_mono_preview
+        )
         self.phone_speaker_checkbox.toggled.connect(
             self.toggle_phone_speaker_preview
         )
@@ -287,6 +302,15 @@ class MainWindow(QMainWindow):
         return frame
 
     def create_meters(self, layout):
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+
+        meter_container = QWidget()
+        meter_layout = QVBoxLayout(meter_container)
+        meter_layout.setContentsMargins(0, 0, 0, 0)
+        meter_layout.setSpacing(10)
+
         self.peak_meter = AudioMeter("Peak")
         self.true_peak_meter = AudioMeter("True Peak")
         self.rms_meter = AudioMeter("RMS")
@@ -312,7 +336,11 @@ class MainWindow(QMainWindow):
             self.waveform,
             self.spectrum,
         ):
-            layout.addWidget(widget)
+            meter_layout.addWidget(widget)
+
+        meter_layout.addStretch()
+        scroll_area.setWidget(meter_container)
+        layout.addWidget(scroll_area, 1)
 
     def load_devices(self):
         devices = sd.query_devices()
@@ -431,6 +459,9 @@ class MainWindow(QMainWindow):
             saved.get("youtube_normalize_enabled", False)
         )
         self.mono_checkbox.setChecked(saved.get("mono_preview", False))
+        self.bass_mono_checkbox.setChecked(
+            saved.get("bass_mono_preview", False)
+        )
         self.phone_speaker_checkbox.setChecked(
             saved.get("phone_speaker_preview", False)
         )
@@ -454,6 +485,7 @@ class MainWindow(QMainWindow):
             "youtube_preview": self.youtube_checkbox.isChecked(),
             "aac_preview": self.aac_checkbox.isChecked(),
             "mono_preview": self.mono_checkbox.isChecked(),
+            "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
             "limiter_enabled": self.limiter_checkbox.isChecked(),
             "normalizer_enabled": self.normalizer_checkbox.isChecked(),
@@ -762,6 +794,13 @@ class MainWindow(QMainWindow):
         audio.set_mono_preview(enabled)
         state = "ON" if enabled else "OFF"
         print(f"Mono Preview: {state}")
+
+    def toggle_bass_mono_preview(self, enabled):
+        import audio
+
+        audio.set_bass_mono_preview(enabled)
+        state = "ON" if enabled else "OFF"
+        print(f"Bass Mono Preview (150 Hz): {state}")
 
     def toggle_phone_speaker_preview(self, enabled):
         import audio

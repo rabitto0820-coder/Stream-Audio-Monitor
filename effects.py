@@ -141,3 +141,47 @@ class PhoneSpeakerPreview:
             filtered *= gain
 
         return np.repeat(filtered[:, np.newaxis], data.shape[1], axis=1)
+
+
+class BassMonoPreview:
+    """Keep stereo highs while folding the bass range to mono."""
+
+    def __init__(self, sample_rate=48000, channels=2, cutoff_hz=150.0):
+        self.sample_rate = int(sample_rate)
+        self.channels = int(channels)
+        self.cutoff_hz = float(cutoff_hz)
+        self.enabled = False
+        self.configure(sample_rate, channels)
+
+    def configure(self, sample_rate=None, channels=None):
+        if sample_rate is not None:
+            self.sample_rate = int(sample_rate)
+        if channels is not None:
+            self.channels = int(channels)
+
+        nyquist = self.sample_rate / 2.0
+        cutoff = min(self.cutoff_hz, nyquist * 0.90)
+        self.sos = butter(
+            4,
+            cutoff / nyquist,
+            btype="low",
+            output="sos",
+        )
+        self.reset()
+
+    def reset(self):
+        self.state = np.zeros((len(self.sos), 2, self.channels))
+
+    def process(self, data):
+        if not self.enabled or data.size == 0 or data.shape[1] < 2:
+            return data
+
+        low, self.state = sosfilt(
+            self.sos,
+            data,
+            axis=0,
+            zi=self.state,
+        )
+        high = data - low
+        mono_low = np.mean(low, axis=1, keepdims=True)
+        return high + np.repeat(mono_low, data.shape[1], axis=1)

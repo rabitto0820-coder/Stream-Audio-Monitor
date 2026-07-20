@@ -6,6 +6,7 @@ from scipy.signal import resample_poly
 from aac import AACPreview
 from audio_state import audio_state
 from effects import (
+    BassMonoPreview,
     LoudnessNormalizer,
     PhoneSpeakerPreview,
     SafetyLimiter,
@@ -18,6 +19,7 @@ from youtube import YouTubeOpusPreview
 opus_simulation = False
 aac_simulation = False
 mono_preview = False
+bass_mono_preview = False
 phone_speaker_preview = False
 
 sample_rate = 48000
@@ -54,6 +56,11 @@ phone_speaker = PhoneSpeakerPreview(
     sample_rate=sample_rate
 )
 
+bass_mono = BassMonoPreview(
+    sample_rate=sample_rate,
+    channels=2,
+)
+
 
 def configure_audio(new_sample_rate, channels=2):
     global sample_rate
@@ -84,6 +91,11 @@ def configure_audio(new_sample_rate, channels=2):
 
     phone_speaker.configure(
         sample_rate=sample_rate
+    )
+
+    bass_mono.configure(
+        sample_rate=sample_rate,
+        channels=channels,
     )
 
     normalizer.reset()
@@ -130,6 +142,14 @@ def set_mono_preview(enabled):
     global mono_preview
 
     mono_preview = bool(enabled)
+
+
+def set_bass_mono_preview(enabled):
+    global bass_mono_preview
+
+    bass_mono_preview = bool(enabled)
+    bass_mono.enabled = bass_mono_preview
+    bass_mono.reset()
 
 
 def set_phone_speaker_preview(enabled):
@@ -207,7 +227,11 @@ def callback(indata, outdata, frames, time_info, status):
 
     elif aac_simulation:
         data = aac_preview.process(data)
-        audio_state.codec_preview_mode = "AAC APPROX"
+        audio_state.codec_preview_mode = (
+            "REAL AAC"
+            if aac_preview.real_codec_available
+            else "AAC APPROX"
+        )
 
     else:
         audio_state.codec_preview_mode = "OFF"
@@ -225,6 +249,7 @@ def callback(indata, outdata, frames, time_info, status):
     data = normalizer.process(data, audio_state.lufs_s)
     audio_state.normalizer_gain_db = normalizer.gain_db
 
+    data = bass_mono.process(data)
     data = phone_speaker.process(data)
 
     data = limiter.process(data)
