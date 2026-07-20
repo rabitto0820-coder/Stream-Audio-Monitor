@@ -4,6 +4,7 @@ from pathlib import Path
 import wave
 
 import numpy as np
+from scipy.signal import resample_poly
 
 from loudness import LoudnessMeter
 
@@ -26,6 +27,7 @@ def analyze_wav(path, target_lufs=-14.0):
 
         meter = LoudnessMeter(sample_rate=sample_rate, channels=channels)
         peak = 0.0
+        true_peak = 0.0
 
         while True:
             raw = wav_file.readframes(16384)
@@ -34,6 +36,7 @@ def analyze_wav(path, target_lufs=-14.0):
 
             samples = _decode_pcm(raw, sample_width, channels)
             peak = max(peak, float(np.max(np.abs(samples))))
+            true_peak = max(true_peak, _estimate_true_peak(samples))
             momentary, short_term, integrated = meter.process(samples)
 
     if total_frames == 0:
@@ -41,6 +44,7 @@ def analyze_wav(path, target_lufs=-14.0):
 
     youtube_gain_db = min(0.0, float(target_lufs) - integrated)
     youtube_percent = 100.0 * (10.0 ** (youtube_gain_db / 20.0))
+    true_peak_db = _decibels(true_peak)
 
     return {
         "name": file_path.name,
@@ -48,11 +52,18 @@ def analyze_wav(path, target_lufs=-14.0):
         "sample_rate": sample_rate,
         "channels": channels,
         "peak_db": _decibels(peak),
+        "true_peak_db": true_peak_db,
+        "true_peak_headroom_db": -true_peak_db,
         "lufs_m": momentary,
         "lufs_s": short_term,
         "lufs_i": integrated,
         "youtube_gain_db": youtube_gain_db,
         "youtube_percent": youtube_percent,
+        "youtube_advice": _youtube_advice(
+            integrated,
+            true_peak_db,
+            youtube_gain_db,
+        ),
     }
 
 
@@ -154,6 +165,35 @@ def _decibels(amplitude):
         return -60.0
 
     return 20.0 * np.log10(amplitude)
+
+
+def _estimate_true_peak(samples):
+    """Return a 4x oversampled true-peak estimate for one PCM block."""
+    oversampled = resample_poly(samples, 4, 1, axis=0)
+    return float(np.max(np.abs(oversampled)))
+
+
+def _youtube_advice(integrated_lufs, true_peak_db, youtube_gain_db):
+    """Create a short, practical YouTube preparation note."""
+    notes = []
+
+    if true_peak_db > -1.0:
+        notes.append(
+            "True Peak is above -1.0 dBTP. Lower the master or use a limiter."
+        )
+    else:
+        notes.append("True Peak has at least 1 dB of encoding headroom.")
+
+    if youtube_gain_db < -0.1:
+        notes.append(
+            f"YouTube is expected to lower playback by {-youtube_gain_db:.1f} dB."
+        )
+    elif integrated_lufs < -14.5:
+        notes.append("YouTube usually will not raise a quieter master.")
+    else:
+        notes.append("Playback loudness is close to the -14 LUFS reference.")
+
+    return " ".join(notes)
 
 
 def _power_decibels(power):

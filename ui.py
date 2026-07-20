@@ -414,9 +414,12 @@ class MainWindow(QMainWindow):
             f"Duration: {minutes:02d}:{seconds:02d}\n"
             f"Integrated LUFS: {result['lufs_i']:.1f}\n"
             f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
+            f"Estimated True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
             "YouTube playback estimate\n"
             f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
-            f"Volume: {result['youtube_percent']:.0f}%"
+            f"Volume: {result['youtube_percent']:.0f}%\n\n"
+            "YouTube mix check\n"
+            f"{result['youtube_advice']}"
         )
 
         self.status.setText("Status: WAV analysis complete")
