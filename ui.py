@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 
 from audio_state import audio_state
 from file_analyzer import analyze_wav
+from opus_exporter import export_opus_preview
 from settings import load_settings, save_settings
 from themes import apply_theme, theme_names
 from widgets import (
@@ -170,6 +171,11 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.analyze_wav_button = QPushButton("Analyze WAV")
+        self.export_opus_button = QPushButton("Export Opus WAV")
+        self.youtube_volume_export_checkbox = QCheckBox(
+            "Apply YouTube Volume"
+        )
+        self.youtube_volume_export_checkbox.setChecked(True)
 
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
@@ -198,6 +204,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
         layout.addWidget(self.analyze_wav_button)
+        layout.addWidget(self.export_opus_button)
+        layout.addWidget(self.youtube_volume_export_checkbox)
 
         layout.addWidget(self.youtube_checkbox)
         layout.addWidget(self.aac_checkbox)
@@ -222,6 +230,7 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
+        self.export_opus_button.clicked.connect(self.export_opus_wav)
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
@@ -400,6 +409,60 @@ class MainWindow(QMainWindow):
         self.status.setText("Status: WAV analysis complete")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Analysis", message)
+
+    def export_opus_wav(self):
+        source_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select source WAV",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not source_path:
+            return
+
+        default_path = source_path.rsplit(".", 1)[0]
+        default_path += f"_opus_{self.current_opus_bitrate()}k.wav"
+
+        destination_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Opus preview WAV",
+            default_path,
+            "WAV files (*.wav)",
+        )
+
+        if not destination_path:
+            return
+
+        try:
+            bitrate = self.current_opus_bitrate()
+            analysis = analyze_wav(source_path)
+            playback_gain_db = (
+                analysis["youtube_gain_db"]
+                if self.youtube_volume_export_checkbox.isChecked()
+                else 0.0
+            )
+            self.status.setText("Status: Exporting Opus preview...")
+            output_path = export_opus_preview(
+                source_path,
+                destination_path,
+                bitrate,
+                playback_gain_db,
+            )
+        except (OSError, RuntimeError, ValueError) as error:
+            self.status.setText("Status: Opus export error")
+            QMessageBox.warning(self, "Opus Export", str(error))
+            return
+
+        self.status.setText("Status: Opus preview exported")
+        message = (
+            f"Created Opus preview WAV\n\n"
+            f"Bitrate: {bitrate} kbps\n"
+            f"YouTube gain: {playback_gain_db:+.1f} dB\n"
+            f"File: {output_path}"
+        )
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "Opus Export", message)
 
     def toggle_opus(self, enabled):
         import audio
