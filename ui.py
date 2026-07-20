@@ -60,6 +60,8 @@ class MainWindow(QMainWindow):
 
         self.lufs_time_indicator = QLabel("LUFS: 00:00")
 
+        self.codec_indicator = QLabel("CODEC: OFF")
+
         self.normalizer_gain_indicator = QLabel("Normalize: 0.0 dB")
         self.normalizer_gain_indicator.setStyleSheet(
             """
@@ -113,6 +115,7 @@ class MainWindow(QMainWindow):
         status_row.addStretch()
         status_row.addWidget(self.input_signal_indicator)
         status_row.addWidget(self.lufs_time_indicator)
+        status_row.addWidget(self.codec_indicator)
         status_row.addWidget(self.normalizer_gain_indicator)
         status_row.addWidget(self.youtube_gain_indicator)
         status_row.addWidget(self.headroom_indicator)
@@ -633,6 +636,33 @@ class MainWindow(QMainWindow):
             f"LUFS: {minutes:02d}:{seconds:02d} {progress}"
         )
 
+    def update_codec_indicator(self):
+        mode = audio_state.codec_preview_mode
+        self.codec_indicator.setText(f"CODEC: {mode}")
+
+        if mode == "REAL OPUS":
+            style = """
+                background: #1f5637; color: #d4ffdf;
+                padding: 6px; border-radius: 4px;
+            """
+        elif mode == "OPUS APPROX":
+            style = """
+                background: #66520e; color: #fff3b0;
+                padding: 6px; border-radius: 4px;
+            """
+        elif mode == "AAC APPROX":
+            style = """
+                background: #203a4a; color: #b8e8ff;
+                padding: 6px; border-radius: 4px;
+            """
+        else:
+            style = """
+                background: #303030; color: #d0d0d0;
+                padding: 6px; border-radius: 4px;
+            """
+
+        self.codec_indicator.setStyleSheet(style)
+
     def update_gui(self):
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
@@ -678,6 +708,7 @@ class MainWindow(QMainWindow):
         self.update_headroom_indicator()
         self.update_input_signal_indicator()
         self.update_lufs_time_indicator()
+        self.update_codec_indicator()
 
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(

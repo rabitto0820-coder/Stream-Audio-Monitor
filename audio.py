@@ -90,6 +90,7 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.lufs_s = -70.0
     audio_state.lufs_i = -70.0
     audio_state.lufs_measurement_seconds = 0.0
+    audio_state.codec_preview_mode = "OFF"
 
     reset_clip_counter()
 
@@ -180,9 +181,18 @@ def callback(indata, outdata, frames, time_info, status):
 
     if opus_simulation:
         data = opus_filter(data)
+        audio_state.codec_preview_mode = (
+            "REAL OPUS"
+            if youtube_preview.real_codec_available
+            else "OPUS APPROX"
+        )
 
     elif aac_simulation:
         data = aac_preview.process(data)
+        audio_state.codec_preview_mode = "AAC APPROX"
+
+    else:
+        audio_state.codec_preview_mode = "OFF"
 
     (
         audio_state.lufs_m,

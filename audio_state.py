@@ -15,6 +15,7 @@ class AudioState:
         self.lufs_measurement_seconds = 0.0
         self.normalizer_gain_db = 0.0
         self.youtube_gain_db = 0.0
+        self.codec_preview_mode = "OFF"
 
         self.rms_db = -60.0
 
