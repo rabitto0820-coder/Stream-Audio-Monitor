@@ -27,6 +27,7 @@ class MainWindow(QMainWindow):
 
         self.input_devices = []
         self.output_devices = []
+        self.saved_settings = {}
 
         self.rate_values = [44100, 48000, 96000]
         self.buffer_values = [256, 512, 1024, 2048, 4096]
@@ -129,6 +130,8 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.broadcast_preset_button)
 
         layout.addLayout(status_row)
+
+        self.restore_preview_settings()
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_gui)
@@ -321,7 +324,8 @@ class MainWindow(QMainWindow):
                 self.output_devices.append(index)
                 self.output_box.addItem(f"{index}: {name}")
 
-        saved = load_settings()
+        saved = load_settings() or {}
+        self.saved_settings = saved
 
         if not saved:
             return
@@ -367,12 +371,7 @@ class MainWindow(QMainWindow):
             self.buffer_box.currentIndex()
         ]
 
-        save_settings(
-            input_device,
-            output_device,
-            samplerate,
-            blocksize
-        )
+        self.save_current_settings()
 
         started = self.start_stream(
             input_device,
@@ -388,6 +387,88 @@ class MainWindow(QMainWindow):
     def stop_audio(self):
         self.stop_stream()
         self.status.setText("Status: Stopped")
+
+    def restore_preview_settings(self):
+        """Restore monitor choices saved when the app was last closed."""
+        saved = self.saved_settings.get("preview_settings", {})
+        if not saved:
+            return
+
+        theme = saved.get("theme")
+        if theme in theme_names():
+            self.theme_box.setCurrentText(theme)
+
+        bitrate = saved.get("opus_bitrate")
+        if bitrate in self.opus_bitrate_values:
+            self.opus_bitrate_box.setCurrentIndex(
+                self.opus_bitrate_values.index(bitrate)
+            )
+
+        target = saved.get("normalizer_target")
+        if target in self.normalizer_target_values:
+            self.normalizer_target_box.setCurrentIndex(
+                self.normalizer_target_values.index(target)
+            )
+
+        ceiling = saved.get("limiter_ceiling")
+        if ceiling in self.limiter_ceiling_values:
+            self.limiter_ceiling_box.setCurrentIndex(
+                self.limiter_ceiling_values.index(ceiling)
+            )
+
+        self.youtube_volume_export_checkbox.setChecked(
+            saved.get("apply_youtube_volume", True)
+        )
+        self.limiter_checkbox.setChecked(saved.get("limiter_enabled", False))
+        self.normalizer_checkbox.setChecked(
+            saved.get("normalizer_enabled", False)
+        )
+        self.youtube_normalize_checkbox.setChecked(
+            saved.get("youtube_normalize_enabled", False)
+        )
+        self.mono_checkbox.setChecked(saved.get("mono_preview", False))
+        self.phone_speaker_checkbox.setChecked(
+            saved.get("phone_speaker_preview", False)
+        )
+
+        # AAC is restored first because enabling the YouTube preview turns it
+        # off automatically; only one real-time codec preview can be active.
+        self.aac_checkbox.setChecked(saved.get("aac_preview", False))
+        self.youtube_checkbox.setChecked(saved.get("youtube_preview", False))
+
+    def save_current_settings(self):
+        """Save devices and all monitor choices for the next launch."""
+        if not self.input_devices or not self.output_devices:
+            return
+
+        preview_settings = {
+            "theme": self.theme_box.currentText(),
+            "opus_bitrate": self.current_opus_bitrate(),
+            "limiter_ceiling": self.current_limiter_ceiling(),
+            "normalizer_target": self.current_normalizer_target(),
+            "apply_youtube_volume": self.youtube_volume_export_checkbox.isChecked(),
+            "youtube_preview": self.youtube_checkbox.isChecked(),
+            "aac_preview": self.aac_checkbox.isChecked(),
+            "mono_preview": self.mono_checkbox.isChecked(),
+            "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
+            "limiter_enabled": self.limiter_checkbox.isChecked(),
+            "normalizer_enabled": self.normalizer_checkbox.isChecked(),
+            "youtube_normalize_enabled": (
+                self.youtube_normalize_checkbox.isChecked()
+            ),
+        }
+
+        save_settings(
+            self.input_devices[self.input_box.currentIndex()],
+            self.output_devices[self.output_box.currentIndex()],
+            self.rate_values[self.rate_box.currentIndex()],
+            self.buffer_values[self.buffer_box.currentIndex()],
+            preview_settings=preview_settings,
+        )
+
+    def closeEvent(self, event):
+        self.save_current_settings()
+        super().closeEvent(event)
 
     def analyze_wav_file(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -614,9 +695,7 @@ class MainWindow(QMainWindow):
 
             print("AAC Preview: ON")
 
-            self.status.setText(
-                "Status: AAC Preview (Approximate)"
-            )
+            self.status.setText("Status: AAC Preview (128 kbps)")
 
         else:
             print("AAC Preview: OFF")
@@ -873,6 +952,11 @@ class MainWindow(QMainWindow):
         elif mode == "OPUS APPROX":
             style = """
                 background: #66520e; color: #fff3b0;
+                padding: 6px; border-radius: 4px;
+            """
+        elif mode == "REAL AAC":
+            style = """
+                background: #1f5637; color: #d4ffdf;
                 padding: 6px; border-radius: 4px;
             """
         elif mode == "AAC APPROX":

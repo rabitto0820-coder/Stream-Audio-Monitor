@@ -11,7 +11,8 @@ def save_settings(
     output_device,
     samplerate,
     blocksize,
-    auto_start=False
+    auto_start=False,
+    preview_settings=None,
 ):
 
     data = {
@@ -27,6 +28,9 @@ def save_settings(
         "auto_start": auto_start
 
     }
+
+    if preview_settings is not None:
+        data["preview_settings"] = preview_settings
 
 
 
@@ -71,6 +75,9 @@ def load_settings():
     if "auto_start" not in data:
 
         data["auto_start"] = False
+
+    if "preview_settings" not in data:
+        data["preview_settings"] = {}
 
 
 
