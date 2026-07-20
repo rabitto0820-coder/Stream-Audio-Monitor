@@ -21,6 +21,8 @@ aac_simulation = False
 mono_preview = False
 bass_mono_preview = False
 phone_speaker_preview = False
+monitor_muted = False
+bypass_effects = False
 
 sample_rate = 48000
 
@@ -160,6 +162,25 @@ def set_phone_speaker_preview(enabled):
     phone_speaker.reset()
 
 
+def set_monitor_muted(enabled):
+    global monitor_muted
+
+    monitor_muted = bool(enabled)
+
+
+def set_bypass_effects(enabled):
+    global bypass_effects
+
+    bypass_effects = bool(enabled)
+    normalizer.reset()
+    youtube_normalizer.reset()
+    limiter.reset()
+    bass_mono.reset()
+    phone_speaker.reset()
+    audio_state.normalizer_gain_db = 0.0
+    audio_state.youtube_gain_db = 0.0
+
+
 def reset_clip_counter():
     audio_state.clip_count = 0
     audio_state.clip_latched = False
@@ -217,7 +238,10 @@ def callback(indata, outdata, frames, time_info, status):
         float(np.max(np.abs(data)))
     )
 
-    if opus_simulation:
+    if bypass_effects:
+        audio_state.codec_preview_mode = "BYPASS"
+
+    elif opus_simulation:
         data = opus_filter(data)
         audio_state.codec_preview_mode = (
             "REAL OPUS"
@@ -243,22 +267,29 @@ def callback(indata, outdata, frames, time_info, status):
     ) = loudness_meter.process(data)
     audio_state.lufs_measurement_seconds += frames / sample_rate
 
-    data = youtube_normalizer.process(data, audio_state.lufs_i)
-    audio_state.youtube_gain_db = youtube_normalizer.gain_db
+    if bypass_effects:
+        audio_state.youtube_gain_db = 0.0
+        audio_state.normalizer_gain_db = 0.0
+    else:
+        data = youtube_normalizer.process(data, audio_state.lufs_i)
+        audio_state.youtube_gain_db = youtube_normalizer.gain_db
 
-    data = normalizer.process(data, audio_state.lufs_s)
-    audio_state.normalizer_gain_db = normalizer.gain_db
+        data = normalizer.process(data, audio_state.lufs_s)
+        audio_state.normalizer_gain_db = normalizer.gain_db
 
-    data = bass_mono.process(data)
-    data = phone_speaker.process(data)
+        data = bass_mono.process(data)
+        data = phone_speaker.process(data)
 
-    data = limiter.process(data)
+        data = limiter.process(data)
 
-    if mono_preview and data.shape[1] >= 2:
-        mono = np.mean(data, axis=1, keepdims=True)
-        data = np.repeat(mono, data.shape[1], axis=1)
+        if mono_preview and data.shape[1] >= 2:
+            mono = np.mean(data, axis=1, keepdims=True)
+            data = np.repeat(mono, data.shape[1], axis=1)
 
-    outdata[:] = data
+    if monitor_muted:
+        outdata.fill(0.0)
+    else:
+        outdata[:] = data
 
     mono = np.mean(data, axis=1)
 

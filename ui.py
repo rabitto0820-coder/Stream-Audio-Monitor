@@ -194,6 +194,8 @@ class MainWindow(QMainWindow):
         self.mono_checkbox = QCheckBox("Mono Preview")
         self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
         self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
+        self.mute_monitor_checkbox = QCheckBox("Mute Monitor")
+        self.bypass_checkbox = QCheckBox("Bypass Effects")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
         self.normalizer_checkbox = QCheckBox("Loudness Normalize")
         self.youtube_normalize_checkbox = QCheckBox(
@@ -241,6 +243,13 @@ class MainWindow(QMainWindow):
         preview_row.addStretch()
         layout.addLayout(preview_row)
 
+        monitor_row = QHBoxLayout()
+        monitor_row.addWidget(self.mute_monitor_checkbox)
+        monitor_row.addWidget(self.bypass_checkbox)
+        monitor_row.addWidget(QLabel("Mute keeps meters running. Bypass plays the raw input."))
+        monitor_row.addStretch()
+        layout.addLayout(monitor_row)
+
         processing_row = QHBoxLayout()
         processing_row.addWidget(self.limiter_checkbox)
         processing_row.addWidget(QLabel("Ceiling"))
@@ -276,6 +285,10 @@ class MainWindow(QMainWindow):
         self.phone_speaker_checkbox.toggled.connect(
             self.toggle_phone_speaker_preview
         )
+        self.mute_monitor_checkbox.toggled.connect(
+            self.toggle_mute_monitor
+        )
+        self.bypass_checkbox.toggled.connect(self.toggle_bypass_effects)
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -471,6 +484,7 @@ class MainWindow(QMainWindow):
         self.phone_speaker_checkbox.setChecked(
             saved.get("phone_speaker_preview", False)
         )
+        self.bypass_checkbox.setChecked(saved.get("bypass_effects", False))
 
         # AAC is restored first because enabling the YouTube preview turns it
         # off automatically; only one real-time codec preview can be active.
@@ -493,6 +507,7 @@ class MainWindow(QMainWindow):
             "mono_preview": self.mono_checkbox.isChecked(),
             "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
+            "bypass_effects": self.bypass_checkbox.isChecked(),
             "limiter_enabled": self.limiter_checkbox.isChecked(),
             "normalizer_enabled": self.normalizer_checkbox.isChecked(),
             "youtube_normalize_enabled": (
@@ -866,6 +881,26 @@ class MainWindow(QMainWindow):
         else:
             self.status.setText("Status: Running")
 
+    def toggle_mute_monitor(self, enabled):
+        import audio
+
+        audio.set_monitor_muted(enabled)
+        self.status.setText(
+            "Status: Monitor muted (analysis continues)"
+            if enabled
+            else "Status: Running"
+        )
+
+    def toggle_bypass_effects(self, enabled):
+        import audio
+
+        audio.set_bypass_effects(enabled)
+        self.status.setText(
+            "Status: Bypass — raw input"
+            if enabled
+            else "Status: Running"
+        )
+
     def change_opus_bitrate(self, _index=None):
         import audio
 
@@ -1108,6 +1143,11 @@ class MainWindow(QMainWindow):
         elif mode == "AAC APPROX":
             style = """
                 background: #203a4a; color: #b8e8ff;
+                padding: 6px; border-radius: 4px;
+            """
+        elif mode == "BYPASS":
+            style = """
+                background: #66520e; color: #fff3b0;
                 padding: 6px; border-radius: 4px;
             """
         else:
