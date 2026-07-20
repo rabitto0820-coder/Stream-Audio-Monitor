@@ -7,6 +7,7 @@ from aac import AACPreview
 from audio_state import audio_state
 from effects import (
     LoudnessNormalizer,
+    PhoneSpeakerPreview,
     SafetyLimiter,
     YouTubePlaybackNormalizer,
 )
@@ -17,6 +18,7 @@ from youtube import YouTubeOpusPreview
 opus_simulation = False
 aac_simulation = False
 mono_preview = False
+phone_speaker_preview = False
 
 sample_rate = 48000
 
@@ -48,6 +50,10 @@ youtube_normalizer = YouTubePlaybackNormalizer(
     target_lufs=-14.0
 )
 
+phone_speaker = PhoneSpeakerPreview(
+    sample_rate=sample_rate
+)
+
 
 def configure_audio(new_sample_rate, channels=2):
     global sample_rate
@@ -73,6 +79,10 @@ def configure_audio(new_sample_rate, channels=2):
     )
 
     limiter.configure(
+        sample_rate=sample_rate
+    )
+
+    phone_speaker.configure(
         sample_rate=sample_rate
     )
 
@@ -120,6 +130,14 @@ def set_mono_preview(enabled):
     global mono_preview
 
     mono_preview = bool(enabled)
+
+
+def set_phone_speaker_preview(enabled):
+    global phone_speaker_preview
+
+    phone_speaker_preview = bool(enabled)
+    phone_speaker.enabled = phone_speaker_preview
+    phone_speaker.reset()
 
 
 def reset_clip_counter():
@@ -206,6 +224,8 @@ def callback(indata, outdata, frames, time_info, status):
 
     data = normalizer.process(data, audio_state.lufs_s)
     audio_state.normalizer_gain_db = normalizer.gain_db
+
+    data = phone_speaker.process(data)
 
     data = limiter.process(data)
 

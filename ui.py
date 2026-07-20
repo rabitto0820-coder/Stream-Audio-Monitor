@@ -182,6 +182,7 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.mono_checkbox = QCheckBox("Mono Preview")
+        self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
         self.limiter_checkbox = QCheckBox("Safety Limiter")
         self.normalizer_checkbox = QCheckBox("Loudness Normalize")
         self.youtube_normalize_checkbox = QCheckBox(
@@ -214,6 +215,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.youtube_checkbox)
         layout.addWidget(self.aac_checkbox)
         layout.addWidget(self.mono_checkbox)
+        layout.addWidget(self.phone_speaker_checkbox)
 
         layout.addWidget(QLabel("Opus"))
         layout.addWidget(self.opus_bitrate_box)
@@ -243,6 +245,9 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
         self.mono_checkbox.toggled.connect(self.toggle_mono_preview)
+        self.phone_speaker_checkbox.toggled.connect(
+            self.toggle_phone_speaker_preview
+        )
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -620,6 +625,18 @@ class MainWindow(QMainWindow):
         audio.set_mono_preview(enabled)
         state = "ON" if enabled else "OFF"
         print(f"Mono Preview: {state}")
+
+    def toggle_phone_speaker_preview(self, enabled):
+        import audio
+
+        audio.set_phone_speaker_preview(enabled)
+        state = "ON" if enabled else "OFF"
+        print(f"Phone Speaker Preview: {state}")
+
+        if enabled:
+            self.status.setText("Status: Phone Speaker Preview")
+        else:
+            self.status.setText("Status: Running")
 
     def change_opus_bitrate(self, _index=None):
         import audio

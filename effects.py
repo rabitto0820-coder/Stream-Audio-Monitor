@@ -1,6 +1,7 @@
 """Real-time safety limiter used by the monitor output."""
 
 import numpy as np
+from scipy.signal import butter, sosfilt
 
 
 class SafetyLimiter:
@@ -93,3 +94,50 @@ class YouTubePlaybackNormalizer:
             np.clip(self.target_lufs - integrated_lufs, -20.0, 0.0)
         )
         return data * (10.0 ** (self.gain_db / 20.0))
+
+
+class PhoneSpeakerPreview:
+    """Approximate the bandwidth and mono playback of a small phone speaker."""
+
+    def __init__(self, sample_rate=48000):
+        self.sample_rate = int(sample_rate)
+        self.enabled = False
+        self.sos = None
+        self.zi = None
+        self.configure(sample_rate=sample_rate)
+
+    def configure(self, sample_rate=None):
+        if sample_rate is not None:
+            self.sample_rate = int(sample_rate)
+
+        nyquist = self.sample_rate / 2.0
+        low_cut = 180.0
+        high_cut = min(9000.0, nyquist * 0.90)
+        self.sos = butter(
+            2,
+            [low_cut / nyquist, high_cut / nyquist],
+            btype="bandpass",
+            output="sos",
+        )
+        self.reset()
+
+    def reset(self):
+        self.zi = np.zeros((len(self.sos), 2), dtype=np.float64)
+
+    def process(self, data):
+        if not self.enabled or data.size == 0:
+            return data
+
+        # Small phone speakers are effectively mono and do not reproduce
+        # deep bass or the highest treble. Level-match the result so the
+        # listener judges the tonal change rather than a simple volume drop.
+        mono = np.mean(data, axis=1)
+        filtered, self.zi = sosfilt(self.sos, mono, zi=self.zi)
+
+        input_rms = float(np.sqrt(np.mean(np.square(mono))))
+        output_rms = float(np.sqrt(np.mean(np.square(filtered))))
+        if input_rms > 1.0e-6 and output_rms > 1.0e-6:
+            gain = min(input_rms / output_rms, 10.0 ** (8.0 / 20.0))
+            filtered *= gain
+
+        return np.repeat(filtered[:, np.newaxis], data.shape[1], axis=1)
