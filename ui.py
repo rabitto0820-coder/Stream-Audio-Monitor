@@ -3,11 +3,12 @@ import sounddevice as sd
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QFrame, QHBoxLayout,
-    QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QFrame, QFileDialog, QHBoxLayout,
+    QLabel, QMainWindow, QMessageBox, QPushButton, QVBoxLayout, QWidget,
 )
 
 from audio_state import audio_state
+from file_analyzer import analyze_wav
 from settings import load_settings, save_settings
 from themes import apply_theme, theme_names
 from widgets import (
@@ -168,6 +169,7 @@ class MainWindow(QMainWindow):
 
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
+        self.analyze_wav_button = QPushButton("Analyze WAV")
 
         self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
         self.aac_checkbox = QCheckBox("AAC Preview")
@@ -195,6 +197,7 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.start_button)
         layout.addWidget(self.stop_button)
+        layout.addWidget(self.analyze_wav_button)
 
         layout.addWidget(self.youtube_checkbox)
         layout.addWidget(self.aac_checkbox)
@@ -218,6 +221,7 @@ class MainWindow(QMainWindow):
 
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
+        self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
@@ -362,6 +366,40 @@ class MainWindow(QMainWindow):
     def stop_audio(self):
         self.stop_stream()
         self.status.setText("Status: Stopped")
+
+    def analyze_wav_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Analyze WAV file",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not path:
+            return
+
+        try:
+            self.status.setText("Status: Analyzing WAV...")
+            result = analyze_wav(path)
+        except (OSError, ValueError) as error:
+            self.status.setText("Status: WAV analysis error")
+            QMessageBox.warning(self, "WAV Analysis", str(error))
+            return
+
+        minutes, seconds = divmod(int(result["duration_seconds"]), 60)
+        message = (
+            f"File: {result['name']}\n"
+            f"Duration: {minutes:02d}:{seconds:02d}\n"
+            f"Integrated LUFS: {result['lufs_i']:.1f}\n"
+            f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
+            "YouTube playback estimate\n"
+            f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
+            f"Volume: {result['youtube_percent']:.0f}%"
+        )
+
+        self.status.setText("Status: WAV analysis complete")
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "WAV Analysis", message)
 
     def toggle_opus(self, enabled):
         import audio
