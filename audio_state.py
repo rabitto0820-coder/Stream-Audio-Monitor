@@ -8,6 +8,7 @@ class AudioState:
         self.input_peak_db = -60.0
         self.peak_db = -60.0
         self.true_peak_db = -60.0
+        self.max_true_peak_db = -60.0
 
         self.lufs_m = -70.0
         self.lufs_s = -70.0

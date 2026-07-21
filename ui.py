@@ -1264,7 +1264,7 @@ class MainWindow(QMainWindow):
     def update_youtube_readiness_indicator(self):
         """Show a simple posting check from the live measurements."""
         measured_seconds = audio_state.lufs_measurement_seconds
-        true_peak_db = audio_state.true_peak_db
+        max_true_peak_db = audio_state.max_true_peak_db
         lufs_i = audio_state.lufs_i
 
         if measured_seconds < 30.0:
@@ -1280,8 +1280,11 @@ class MainWindow(QMainWindow):
                 background: #8b1e1e; color: white;
                 padding: 6px; border-radius: 4px;
             """
-        elif true_peak_db > -1.0:
-            text = "YouTube Check: lower true peak"
+        elif max_true_peak_db > -1.0:
+            text = (
+                "YouTube Check: lower true peak "
+                f"(max {max_true_peak_db:.1f} dBTP)"
+            )
             style = """
                 background: #8b1e1e; color: white;
                 padding: 6px; border-radius: 4px;

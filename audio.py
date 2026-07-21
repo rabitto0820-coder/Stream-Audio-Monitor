@@ -108,6 +108,7 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.peak_db = -60.0
     audio_state.input_peak_db = -60.0
     audio_state.true_peak_db = -60.0
+    audio_state.max_true_peak_db = -60.0
     audio_state.rms_db = -60.0
 
     audio_state.lufs_m = -70.0
@@ -191,6 +192,7 @@ def reset_integrated_loudness():
     loudness_meter.reset_integrated()
     audio_state.lufs_i = -70.0
     audio_state.lufs_measurement_seconds = 0.0
+    audio_state.max_true_peak_db = -60.0
 
 
 def set_limiter_enabled(enabled):
@@ -373,6 +375,10 @@ def callback(indata, outdata, frames, time_info, status):
 
     audio_state.true_peak_db = _decibels(
         true_peak
+    )
+    audio_state.max_true_peak_db = max(
+        audio_state.max_true_peak_db,
+        audio_state.true_peak_db,
     )
 
     fft = np.abs(
