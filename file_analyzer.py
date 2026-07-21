@@ -64,6 +64,12 @@ def analyze_wav(path, target_lufs=-14.0):
             true_peak_db,
             youtube_gain_db,
         ),
+        "youtube_readiness": _youtube_readiness(
+            integrated,
+            true_peak_db,
+            youtube_gain_db,
+            target_lufs,
+        ),
     }
 
 
@@ -194,6 +200,25 @@ def _youtube_advice(integrated_lufs, true_peak_db, youtube_gain_db):
         notes.append("Playback loudness is close to the -14 LUFS reference.")
 
     return " ".join(notes)
+
+
+def _youtube_readiness(
+    integrated_lufs,
+    true_peak_db,
+    youtube_gain_db,
+    target_lufs,
+):
+    """Return a simple, UI-friendly offline YouTube check result."""
+    if true_peak_db > -1.0:
+        return "TRUE_PEAK"
+
+    if youtube_gain_db < -0.5:
+        return "VOLUME_REDUCTION"
+
+    if integrated_lufs < target_lufs - 3.0:
+        return "QUIET"
+
+    return "READY"
 
 
 def _power_decibels(power):

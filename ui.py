@@ -909,6 +909,7 @@ class MainWindow(QMainWindow):
             return
 
         minutes, seconds = divmod(int(result["duration_seconds"]), 60)
+        readiness = self.format_offline_youtube_readiness(result)
         message = (
             f"File: {result['name']}\n"
             f"Duration: {minutes:02d}:{seconds:02d}\n"
@@ -918,6 +919,7 @@ class MainWindow(QMainWindow):
             "YouTube playback estimate\n"
             f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
             f"Volume: {result['youtube_percent']:.0f}%\n\n"
+            f"YouTube Check: {readiness}\n\n"
             "YouTube mix check\n"
             f"{result['youtube_advice']}"
         )
@@ -925,6 +927,28 @@ class MainWindow(QMainWindow):
         self.set_status("WAV analysis complete", "WAV解析が完了しました")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Analysis", message)
+
+    def format_offline_youtube_readiness(self, result):
+        code = result["youtube_readiness"]
+        japanese = self.current_language == "ja"
+
+        if code == "TRUE_PEAK":
+            return (
+                f"True Peakを下げる ({result['true_peak_db']:.1f} dBTP)"
+                if japanese
+                else f"Lower True Peak ({result['true_peak_db']:.1f} dBTP)"
+            )
+        if code == "VOLUME_REDUCTION":
+            gain_db = abs(result["youtube_gain_db"])
+            return (
+                f"音量が {gain_db:.1f} dB 下がる見込み"
+                if japanese
+                else f"Volume expected to decrease by {gain_db:.1f} dB"
+            )
+        if code == "QUIET":
+            return "基準より小さめ" if japanese else "Quieter than reference"
+
+        return "準備完了" if japanese else "READY"
 
     def compare_wav_files(self):
         reference_path, _ = QFileDialog.getOpenFileName(
