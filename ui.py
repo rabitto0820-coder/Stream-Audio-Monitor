@@ -2,7 +2,7 @@ import math
 import time
 import sounddevice as sd
 
-from PyQt6.QtCore import QEvent, Qt, QTimer
+from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
     QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
@@ -835,6 +835,18 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox.setChecked(saved.get("youtube_preview", False))
         self.apply_language()
 
+        geometry = saved.get("window_geometry")
+        if isinstance(geometry, str):
+            try:
+                self.restoreGeometry(
+                    QByteArray.fromBase64(geometry.encode("ascii"))
+                )
+            except (TypeError, ValueError):
+                pass
+
+        if saved.get("window_maximized", False):
+            QTimer.singleShot(0, self.showMaximized)
+
     def save_current_settings(self):
         """Save devices and all monitor choices for the next launch."""
         if not self.input_devices or not self.output_devices:
@@ -859,6 +871,10 @@ class MainWindow(QMainWindow):
             ),
             "youtube_target_lufs": self.youtube_target_lufs,
             "language": self.current_language,
+            "window_geometry": self.saveGeometry().toBase64().data().decode(
+                "ascii"
+            ),
+            "window_maximized": self.isMaximized(),
         }
 
         save_settings(
