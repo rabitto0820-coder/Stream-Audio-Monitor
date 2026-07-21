@@ -96,6 +96,16 @@ class MainWindow(QMainWindow):
             """
         )
 
+        self.youtube_readiness_indicator = QLabel(
+            "YouTube Check: measuring..."
+        )
+        self.youtube_readiness_indicator.setStyleSheet(
+            """
+            background: #303030; color: #d0d0d0;
+            padding: 6px; border-radius: 4px;
+            """
+        )
+
         self.clear_clip_button = QPushButton("Clear Clip")
         self.clear_clip_button.clicked.connect(self.clear_clip)
 
@@ -132,6 +142,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.youtube_preset_button, 1, 2)
         status_row.addWidget(self.podcast_preset_button, 1, 3)
         status_row.addWidget(self.broadcast_preset_button, 1, 4)
+        status_row.addWidget(self.youtube_readiness_indicator, 1, 5, 1, 4)
 
         layout.addLayout(status_row)
 
@@ -1250,6 +1261,54 @@ class MainWindow(QMainWindow):
 
         self.codec_indicator.setStyleSheet(style)
 
+    def update_youtube_readiness_indicator(self):
+        """Show a simple posting check from the live measurements."""
+        measured_seconds = audio_state.lufs_measurement_seconds
+        true_peak_db = audio_state.true_peak_db
+        lufs_i = audio_state.lufs_i
+
+        if measured_seconds < 30.0:
+            remaining = max(0, int(30.0 - measured_seconds))
+            text = f"YouTube Check: measuring ({remaining}s)"
+            style = """
+                background: #303030; color: #d0d0d0;
+                padding: 6px; border-radius: 4px;
+            """
+        elif audio_state.clip_count > 0:
+            text = "YouTube Check: FIX CLIP"
+            style = """
+                background: #8b1e1e; color: white;
+                padding: 6px; border-radius: 4px;
+            """
+        elif true_peak_db > -1.0:
+            text = "YouTube Check: lower true peak"
+            style = """
+                background: #8b1e1e; color: white;
+                padding: 6px; border-radius: 4px;
+            """
+        elif lufs_i > self.youtube_target_lufs + 0.5:
+            gain_db = self.youtube_target_lufs - lufs_i
+            text = f"YouTube Check: volume -{abs(gain_db):.1f} dB"
+            style = """
+                background: #66520e; color: #fff3b0;
+                padding: 6px; border-radius: 4px;
+            """
+        elif lufs_i < self.youtube_target_lufs - 3.0:
+            text = "YouTube Check: quieter than reference"
+            style = """
+                background: #203a4a; color: #b8e8ff;
+                padding: 6px; border-radius: 4px;
+            """
+        else:
+            text = "YouTube Check: READY"
+            style = """
+                background: #1f5637; color: #d4ffdf;
+                padding: 6px; border-radius: 4px;
+            """
+
+        self.youtube_readiness_indicator.setText(text)
+        self.youtube_readiness_indicator.setStyleSheet(style)
+
     def update_gui(self):
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
@@ -1296,6 +1355,7 @@ class MainWindow(QMainWindow):
         self.update_input_signal_indicator()
         self.update_lufs_time_indicator()
         self.update_codec_indicator()
+        self.update_youtube_readiness_indicator()
 
         if time.monotonic() < audio_state.clip_hold_until:
             self.clip_indicator.setStyleSheet(
