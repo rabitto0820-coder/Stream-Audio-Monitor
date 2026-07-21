@@ -608,6 +608,7 @@ class MainWindow(QMainWindow):
             self.toggle_mute_monitor
         )
         self.bypass_checkbox.toggled.connect(self.toggle_bypass_effects)
+        self.bypass_checkbox.toggled.connect(self.update_bypass_status)
         self.calibrate_youtube_button.clicked.connect(self.calibrate_youtube)
         self.reset_youtube_target_button.clicked.connect(
             self.reset_youtube_target
@@ -726,7 +727,10 @@ class MainWindow(QMainWindow):
 
     def start_audio(self):
         if not self.input_devices or not self.output_devices:
-            self.status.setText("Status: No usable audio device found")
+            self.set_status(
+                "No usable audio device found",
+                "使用できる音声デバイスがありません",
+            )
             return
 
         input_device = self.input_devices[
@@ -754,13 +758,20 @@ class MainWindow(QMainWindow):
             blocksize,
         )
 
-        self.status.setText(
-            "Status: Running" if started else "Status: Audio error"
-        )
+        if started:
+            self.set_status("Running", "動作中")
+        else:
+            self.set_status("Audio error", "音声エラー")
 
     def stop_audio(self):
         self.stop_stream()
-        self.status.setText("Status: Stopped")
+        self.set_status("Stopped", "停止しました")
+
+    def set_status(self, english, japanese):
+        if self.current_language == "ja":
+            self.status.setText(f"状態: {japanese}")
+        else:
+            self.status.setText(f"Status: {english}")
 
     def restore_preview_settings(self):
         """Restore monitor choices saved when the app was last closed."""
@@ -874,10 +885,10 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.status.setText("Status: Analyzing WAV...")
+            self.set_status("Analyzing WAV...", "WAVを解析中...")
             result = analyze_wav(path, self.youtube_target_lufs)
         except (OSError, ValueError) as error:
-            self.status.setText("Status: WAV analysis error")
+            self.set_status("WAV analysis error", "WAV解析エラー")
             QMessageBox.warning(self, "WAV Analysis", str(error))
             return
 
@@ -895,7 +906,7 @@ class MainWindow(QMainWindow):
             f"{result['youtube_advice']}"
         )
 
-        self.status.setText("Status: WAV analysis complete")
+        self.set_status("WAV analysis complete", "WAV解析が完了しました")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Analysis", message)
 
@@ -921,10 +932,10 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.status.setText("Status: Comparing WAV files...")
+            self.set_status("Comparing WAV files...", "WAVファイルを比較中...")
             result = compare_wavs(reference_path, preview_path)
         except (OSError, ValueError) as error:
-            self.status.setText("Status: WAV comparison error")
+            self.set_status("WAV comparison error", "WAV比較エラー")
             QMessageBox.warning(self, "WAV Comparison", str(error))
             return
 
@@ -943,7 +954,7 @@ class MainWindow(QMainWindow):
             "energy in that band. Use it as a comparison guide, not a score."
         )
 
-        self.status.setText("Status: WAV comparison complete")
+        self.set_status("WAV comparison complete", "WAV比較が完了しました")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Comparison", message)
 
@@ -979,7 +990,7 @@ class MainWindow(QMainWindow):
                 if self.youtube_volume_export_checkbox.isChecked()
                 else 0.0
             )
-            self.status.setText("Status: Exporting Opus preview...")
+            self.set_status("Exporting Opus preview...", "Opusプレビューを書き出し中...")
             output_path = export_opus_preview(
                 source_path,
                 destination_path,
@@ -987,11 +998,11 @@ class MainWindow(QMainWindow):
                 playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.status.setText("Status: Opus export error")
+            self.set_status("Opus export error", "Opus書き出しエラー")
             QMessageBox.warning(self, "Opus Export", str(error))
             return
 
-        self.status.setText("Status: Opus preview exported")
+        self.set_status("Opus preview exported", "Opusプレビューを書き出しました")
         message = (
             f"Created Opus preview WAV\n\n"
             f"Bitrate: {bitrate} kbps\n"
@@ -1030,7 +1041,7 @@ class MainWindow(QMainWindow):
                 if self.youtube_volume_export_checkbox.isChecked()
                 else 0.0
             )
-            self.status.setText("Status: Exporting AAC preview...")
+            self.set_status("Exporting AAC preview...", "AACプレビューを書き出し中...")
             output_path = export_aac_preview(
                 source_path,
                 destination_path,
@@ -1038,11 +1049,11 @@ class MainWindow(QMainWindow):
                 playback_gain_db=playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.status.setText("Status: AAC export error")
+            self.set_status("AAC export error", "AAC書き出しエラー")
             QMessageBox.warning(self, "AAC Export", str(error))
             return
 
-        self.status.setText("Status: AAC preview exported")
+        self.set_status("AAC preview exported", "AACプレビューを書き出しました")
         message = (
             "Created AAC preview WAV\n\n"
             "Bitrate: 128 kbps\n"
@@ -1075,7 +1086,10 @@ class MainWindow(QMainWindow):
             bitrate = self.current_opus_bitrate()
             analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = analysis["youtube_gain_db"]
-            self.status.setText("Status: Exporting YouTube A/B previews...")
+            self.set_status(
+                "Exporting YouTube A/B previews...",
+                "YouTube A/Bプレビューを書き出し中...",
+            )
             output_paths = export_youtube_ab_previews(
                 source_path,
                 destination_folder,
@@ -1083,11 +1097,14 @@ class MainWindow(QMainWindow):
                 playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.status.setText("Status: YouTube A/B export error")
+            self.set_status("YouTube A/B export error", "YouTube A/B書き出しエラー")
             QMessageBox.warning(self, "YouTube A/B Export", str(error))
             return
 
-        self.status.setText("Status: YouTube A/B previews exported")
+        self.set_status(
+            "YouTube A/B previews exported",
+            "YouTube A/Bプレビューを書き出しました",
+        )
         message = (
             "Created matched YouTube A/B preview WAVs\n\n"
             f"Bitrate: {bitrate} kbps\n"
@@ -1123,7 +1140,10 @@ class MainWindow(QMainWindow):
             opus_bitrate = self.current_opus_bitrate()
             analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = analysis["youtube_gain_db"]
-            self.status.setText("Status: Exporting codec preview pack...")
+            self.set_status(
+                "Exporting codec preview pack...",
+                "コーデックプレビューパックを書き出し中...",
+            )
             paths = export_codec_pack(
                 source_path,
                 destination_folder,
@@ -1134,11 +1154,14 @@ class MainWindow(QMainWindow):
                 youtube_target_lufs=self.youtube_target_lufs,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.status.setText("Status: Codec pack export error")
+            self.set_status("Codec pack export error", "コーデックパック書き出しエラー")
             QMessageBox.warning(self, "Codec Pack Export", str(error))
             return
 
-        self.status.setText("Status: Codec preview pack exported")
+        self.set_status(
+            "Codec preview pack exported",
+            "コーデックプレビューパックを書き出しました",
+        )
         message = (
             "Created YouTube codec preview pack\n\n"
             f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
@@ -1167,13 +1190,14 @@ class MainWindow(QMainWindow):
                 f"YouTube Opus Preview: ON ({bitrate} kbps)"
             )
 
-            self.status.setText(
-                f"Status: YouTube Opus Preview ({bitrate} kbps)"
+            self.set_status(
+                f"YouTube Opus Preview ({bitrate} kbps)",
+                f"YouTube Opusプレビュー ({bitrate} kbps)",
             )
 
         else:
             print("YouTube Opus Preview: OFF")
-            self.status.setText("Status: Running")
+            self.set_status("Running", "動作中")
 
     def toggle_aac(self, enabled):
         import audio
@@ -1187,11 +1211,11 @@ class MainWindow(QMainWindow):
 
             print("AAC Preview: ON")
 
-            self.status.setText("Status: AAC Preview (128 kbps)")
+            self.set_status("AAC Preview (128 kbps)", "AACプレビュー (128 kbps)")
 
         else:
             print("AAC Preview: OFF")
-            self.status.setText("Status: Running")
+            self.set_status("Running", "動作中")
 
     def toggle_mono_preview(self, enabled):
         import audio
@@ -1215,19 +1239,21 @@ class MainWindow(QMainWindow):
         print(f"Phone Speaker Preview: {state}")
 
         if enabled:
-            self.status.setText("Status: Phone Speaker Preview")
+            self.set_status("Phone Speaker Preview", "スマホスピーカープレビュー")
         else:
-            self.status.setText("Status: Running")
+            self.set_status("Running", "動作中")
 
     def toggle_mute_monitor(self, enabled):
         import audio
 
         audio.set_monitor_muted(enabled)
-        self.status.setText(
-            "Status: Monitor muted (analysis continues)"
-            if enabled
-            else "Status: Running"
-        )
+        if enabled:
+            self.set_status(
+                "Monitor muted (analysis continues)",
+                "モニターをミュート中（解析は続きます）",
+            )
+        else:
+            self.set_status("Running", "動作中")
 
     def toggle_bypass_effects(self, enabled):
         import audio
@@ -1238,6 +1264,12 @@ class MainWindow(QMainWindow):
             if enabled
             else "Status: Running"
         )
+
+    def update_bypass_status(self, enabled):
+        if enabled:
+            self.set_status("Bypass raw input", "バイパス中 - 元の入力音")
+        else:
+            self.set_status("Running", "動作中")
 
     def change_opus_bitrate(self, _index=None):
         import audio
@@ -1347,17 +1379,20 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.status.setText("Status: Calibrating YouTube reference...")
+            self.set_status(
+                "Calibrating YouTube reference...",
+                "YouTube基準を調整中...",
+            )
             analysis = analyze_wav(source_path)
         except (OSError, ValueError) as error:
-            self.status.setText("Status: YouTube calibration error")
+            self.set_status("YouTube calibration error", "YouTube調整エラー")
             QMessageBox.warning(self, "YouTube Calibration", str(error))
             return
 
         observed_gain_db = 20.0 * math.log10(percent / 100.0)
         calibrated_target = analysis["lufs_i"] + observed_gain_db
         self.set_youtube_target(calibrated_target)
-        self.status.setText("Status: YouTube reference calibrated")
+        self.set_status("YouTube reference calibrated", "YouTube基準を調整しました")
 
         message = (
             "YouTube reference updated\n\n"
@@ -1371,7 +1406,10 @@ class MainWindow(QMainWindow):
 
     def reset_youtube_target(self):
         self.set_youtube_target(-14.0)
-        self.status.setText("Status: YouTube reference reset to -14 LUFS")
+        self.set_status(
+            "YouTube reference reset to -14 LUFS",
+            "YouTube基準を -14 LUFS に戻しました",
+        )
         print("YouTube reference: RESET to -14.0 LUFS")
 
     def toggle_youtube_normalizer(self, enabled):
@@ -1397,7 +1435,7 @@ class MainWindow(QMainWindow):
         audio.reset_clip_counter()
         self.lufs_i_meter.set_level(-70.0)
         self.clip_indicator.setText("CLIP: 0")
-        self.status.setText("Status: Integrated LUFS reset")
+        self.set_status("Integrated LUFS reset", "Integrated LUFSをリセットしました")
 
         print("Integrated LUFS and clip counter: RESET")
 
@@ -1452,7 +1490,15 @@ class MainWindow(QMainWindow):
         if not opus_preview:
             self.aac_checkbox.setChecked(False)
 
-        self.status.setText(f"Status: {name} preset applied")
+        japanese_names = {
+            "YouTube": "YouTube",
+            "Podcast": "ポッドキャスト",
+            "Broadcast": "放送",
+        }
+        self.set_status(
+            f"{name} preset applied",
+            f"{japanese_names.get(name, name)}プリセットを適用しました",
+        )
 
         print(
             f"Preset: {name} "
