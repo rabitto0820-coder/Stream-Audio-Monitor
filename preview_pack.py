@@ -12,6 +12,8 @@ def export_codec_pack(
     opus_bitrate_kbps=128,
     aac_bitrate_kbps=128,
     youtube_gain_db=0.0,
+    analysis=None,
+    youtube_target_lufs=-14.0,
 ):
     """Create YouTube-volume previews for Opus and AAC."""
     source = Path(source_path)
@@ -42,6 +44,17 @@ def export_codec_pack(
         playback_gain_db=youtube_gain_db,
     )
 
+    _write_youtube_report(
+        paths["report"],
+        source,
+        paths,
+        opus_bitrate_kbps,
+        aac_bitrate_kbps,
+        youtube_gain_db,
+        analysis,
+        youtube_target_lufs,
+    )
+
     return paths
 
 
@@ -58,9 +71,47 @@ def _available_pack_paths(source, folder, opus_bitrate_kbps, aac_bitrate_kbps):
             "aac_youtube": folder / (
                 f"{source.stem}_aac_{aac_bitrate_kbps}k_youtube{suffix}.wav"
             ),
+            "report": folder / (
+                f"{source.stem}_youtube_preview_report{suffix}.txt"
+            ),
         }
 
         if not any(path.exists() for path in paths.values()):
             return paths
 
         index += 1
+
+
+def _write_youtube_report(
+    report_path,
+    source,
+    paths,
+    opus_bitrate_kbps,
+    aac_bitrate_kbps,
+    youtube_gain_db,
+    analysis,
+    youtube_target_lufs,
+):
+    """Write the measurements used to create one codec preview pack."""
+    analysis = analysis or {}
+    volume_percent = 100.0 * (10.0 ** (youtube_gain_db / 20.0))
+    lines = [
+        "Stream Audio Monitor — YouTube Preview Report",
+        "",
+        f"Source WAV: {source}",
+        f"YouTube reference: {float(youtube_target_lufs):.1f} LUFS",
+        f"YouTube playback gain: {float(youtube_gain_db):+.1f} dB",
+        f"YouTube normalized volume: {volume_percent:.0f}%",
+        "",
+        "Source analysis",
+        f"Integrated LUFS: {float(analysis.get('lufs_i', -70.0)):.1f}",
+        f"Estimated True Peak: {float(analysis.get('true_peak_db', -60.0)):.1f} dBTP",
+        f"Sample Peak: {float(analysis.get('peak_db', -60.0)):.1f} dBFS",
+        "",
+        "Created preview files",
+        f"Opus {int(opus_bitrate_kbps)} kbps + YouTube volume: {paths['opus_youtube']}",
+        f"AAC {int(aac_bitrate_kbps)} kbps + YouTube volume: {paths['aac_youtube']}",
+        "",
+        "This report is a practical YouTube preview estimate, not an official YouTube measurement.",
+    ]
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")

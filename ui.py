@@ -819,6 +819,8 @@ class MainWindow(QMainWindow):
                 opus_bitrate_kbps=opus_bitrate,
                 aac_bitrate_kbps=128,
                 youtube_gain_db=playback_gain_db,
+                analysis=analysis,
+                youtube_target_lufs=self.youtube_target_lufs,
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.status.setText("Status: Codec pack export error")
@@ -830,7 +832,8 @@ class MainWindow(QMainWindow):
             "Created YouTube codec preview pack\n\n"
             f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
             f"Opus + YouTube volume\n{paths['opus_youtube']}\n\n"
-            f"AAC + YouTube volume\n{paths['aac_youtube']}"
+            f"AAC + YouTube volume\n{paths['aac_youtube']}\n\n"
+            f"Report\n{paths['report']}"
         )
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "Codec Pack Export", message)
