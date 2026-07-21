@@ -205,6 +205,7 @@ class MainWindow(QMainWindow):
         )
         self.youtube_target_label = QLabel("YT Ref: -14.0 LUFS")
         self.calibrate_youtube_button = QPushButton("Calibrate YouTube")
+        self.reset_youtube_target_button = QPushButton("Reset YT Ref")
 
         self.load_devices()
 
@@ -270,6 +271,7 @@ class MainWindow(QMainWindow):
         youtube_row = QHBoxLayout()
         youtube_row.addWidget(self.youtube_target_label)
         youtube_row.addWidget(self.calibrate_youtube_button)
+        youtube_row.addWidget(self.reset_youtube_target_button)
         youtube_row.addWidget(
             QLabel("Use the normalized volume % from YouTube Stats for Nerds.")
         )
@@ -303,6 +305,9 @@ class MainWindow(QMainWindow):
         )
         self.bypass_checkbox.toggled.connect(self.toggle_bypass_effects)
         self.calibrate_youtube_button.clicked.connect(self.calibrate_youtube)
+        self.reset_youtube_target_button.clicked.connect(
+            self.reset_youtube_target
+        )
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -1050,6 +1055,11 @@ class MainWindow(QMainWindow):
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "YouTube Calibration", message)
 
+    def reset_youtube_target(self):
+        self.set_youtube_target(-14.0)
+        self.status.setText("Status: YouTube reference reset to -14 LUFS")
+        print("YouTube reference: RESET to -14.0 LUFS")
+
     def toggle_youtube_normalizer(self, enabled):
         import audio
 
@@ -1070,10 +1080,12 @@ class MainWindow(QMainWindow):
         import audio
 
         audio.reset_integrated_loudness()
+        audio.reset_clip_counter()
         self.lufs_i_meter.set_level(-70.0)
+        self.clip_indicator.setText("CLIP: 0")
         self.status.setText("Status: Integrated LUFS reset")
 
-        print("Integrated LUFS: RESET")
+        print("Integrated LUFS and clip counter: RESET")
 
     def apply_youtube_preset(self):
         self.apply_loudness_preset(
