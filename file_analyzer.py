@@ -103,6 +103,10 @@ def compare_wavs(reference_path, preview_path):
         ),
         "lufs_difference_db": preview["lufs_i"] - reference["lufs_i"],
         "peak_difference_db": preview["peak_db"] - reference["peak_db"],
+        "correlation_difference": (
+            preview["stereo_correlation"]
+            - reference["stereo_correlation"]
+        ),
         "presence_difference_db": (
             preview_bands["presence"] - reference_bands["presence"]
         ),

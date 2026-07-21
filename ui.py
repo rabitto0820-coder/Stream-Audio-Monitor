@@ -1074,6 +1074,7 @@ class MainWindow(QMainWindow):
             f"Preview: {preview['name']}\n\n"
             f"Integrated LUFS difference: {result['lufs_difference_db']:+.1f} dB\n"
             f"Peak difference: {result['peak_difference_db']:+.1f} dB\n"
+            f"Stereo correlation difference: {result['correlation_difference']:+.2f}\n"
             f"Presence (4–8 kHz): {result['presence_difference_db']:+.1f} dB\n"
             f"High range (8–16 kHz): {result['high_band_difference_db']:+.1f} dB\n"
             f"Duration difference: {result['duration_difference_seconds']:+.3f} sec\n\n"
