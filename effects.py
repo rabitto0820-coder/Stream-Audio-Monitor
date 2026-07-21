@@ -84,6 +84,10 @@ class YouTubePlaybackNormalizer:
     def reset(self):
         self.gain_db = 0.0
 
+    def set_target(self, target_lufs):
+        self.target_lufs = float(target_lufs)
+        self.reset()
+
     def process(self, data, integrated_lufs):
         if not self.enabled or integrated_lufs <= -69.0:
             return data

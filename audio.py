@@ -221,6 +221,11 @@ def set_youtube_normalizer_enabled(enabled):
     audio_state.youtube_gain_db = 0.0
 
 
+def set_youtube_target(target_lufs):
+    youtube_normalizer.set_target(target_lufs)
+    audio_state.youtube_gain_db = 0.0
+
+
 def _decibels(amplitude):
     if amplitude > 0:
         return 20.0 * np.log10(amplitude)

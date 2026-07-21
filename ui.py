@@ -1,10 +1,11 @@
+import math
 import time
 import sounddevice as sd
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
-    QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
+    QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
     QVBoxLayout, QWidget,
 )
 
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         self.opus_bitrate_values = [96, 128, 160]
         self.limiter_ceiling_values = [-1.0, -2.0, -3.0]
         self.normalizer_target_values = [-14.0, -16.0, -23.0]
+        self.youtube_target_lufs = -14.0
 
         self.setWindowTitle("Stream Audio Monitor")
         self.resize(1100, 1200)
@@ -201,6 +203,8 @@ class MainWindow(QMainWindow):
         self.youtube_normalize_checkbox = QCheckBox(
             "YouTube Playback Normalize"
         )
+        self.youtube_target_label = QLabel("YT Ref: -14.0 LUFS")
+        self.calibrate_youtube_button = QPushButton("Calibrate YouTube")
 
         self.load_devices()
 
@@ -263,6 +267,15 @@ class MainWindow(QMainWindow):
         processing_row.addStretch()
         layout.addLayout(processing_row)
 
+        youtube_row = QHBoxLayout()
+        youtube_row.addWidget(self.youtube_target_label)
+        youtube_row.addWidget(self.calibrate_youtube_button)
+        youtube_row.addWidget(
+            QLabel("Use the normalized volume % from YouTube Stats for Nerds.")
+        )
+        youtube_row.addStretch()
+        layout.addLayout(youtube_row)
+
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
@@ -289,6 +302,7 @@ class MainWindow(QMainWindow):
             self.toggle_mute_monitor
         )
         self.bypass_checkbox.toggled.connect(self.toggle_bypass_effects)
+        self.calibrate_youtube_button.clicked.connect(self.calibrate_youtube)
 
         self.opus_bitrate_box.currentIndexChanged.connect(
             self.change_opus_bitrate
@@ -467,6 +481,10 @@ class MainWindow(QMainWindow):
                 self.limiter_ceiling_values.index(ceiling)
             )
 
+        self.set_youtube_target(
+            saved.get("youtube_target_lufs", -14.0)
+        )
+
         self.youtube_volume_export_checkbox.setChecked(
             saved.get("apply_youtube_volume", True)
         )
@@ -513,6 +531,7 @@ class MainWindow(QMainWindow):
             "youtube_normalize_enabled": (
                 self.youtube_normalize_checkbox.isChecked()
             ),
+            "youtube_target_lufs": self.youtube_target_lufs,
         }
 
         save_settings(
@@ -540,7 +559,7 @@ class MainWindow(QMainWindow):
 
         try:
             self.status.setText("Status: Analyzing WAV...")
-            result = analyze_wav(path)
+            result = analyze_wav(path, self.youtube_target_lufs)
         except (OSError, ValueError) as error:
             self.status.setText("Status: WAV analysis error")
             QMessageBox.warning(self, "WAV Analysis", str(error))
@@ -638,7 +657,7 @@ class MainWindow(QMainWindow):
 
         try:
             bitrate = self.current_opus_bitrate()
-            analysis = analyze_wav(source_path)
+            analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = (
                 analysis["youtube_gain_db"]
                 if self.youtube_volume_export_checkbox.isChecked()
@@ -689,7 +708,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            analysis = analyze_wav(source_path)
+            analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = (
                 analysis["youtube_gain_db"]
                 if self.youtube_volume_export_checkbox.isChecked()
@@ -738,7 +757,7 @@ class MainWindow(QMainWindow):
 
         try:
             bitrate = self.current_opus_bitrate()
-            analysis = analyze_wav(source_path)
+            analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = analysis["youtube_gain_db"]
             self.status.setText("Status: Exporting YouTube A/B previews...")
             output_paths = export_youtube_ab_previews(
@@ -786,7 +805,7 @@ class MainWindow(QMainWindow):
 
         try:
             opus_bitrate = self.current_opus_bitrate()
-            analysis = analyze_wav(source_path)
+            analysis = analyze_wav(source_path, self.youtube_target_lufs)
             playback_gain_db = analysis["youtube_gain_db"]
             self.status.setText("Status: Exporting codec preview pack...")
             paths = export_codec_pack(
@@ -972,6 +991,64 @@ class MainWindow(QMainWindow):
         return self.normalizer_target_values[
             self.normalizer_target_box.currentIndex()
         ]
+
+    def set_youtube_target(self, target_lufs):
+        import audio
+
+        self.youtube_target_lufs = float(
+            max(-24.0, min(-8.0, target_lufs))
+        )
+        audio.set_youtube_target(self.youtube_target_lufs)
+        self.youtube_target_label.setText(
+            f"YT Ref: {self.youtube_target_lufs:.1f} LUFS"
+        )
+
+    def calibrate_youtube(self):
+        source_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select the WAV used in your uploaded YouTube video",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not source_path:
+            return
+
+        percent, accepted = QInputDialog.getDouble(
+            self,
+            "YouTube normalized volume",
+            "Enter the second value from 100% / XX%:",
+            100.0,
+            1.0,
+            100.0,
+            1,
+        )
+
+        if not accepted:
+            return
+
+        try:
+            self.status.setText("Status: Calibrating YouTube reference...")
+            analysis = analyze_wav(source_path)
+        except (OSError, ValueError) as error:
+            self.status.setText("Status: YouTube calibration error")
+            QMessageBox.warning(self, "YouTube Calibration", str(error))
+            return
+
+        observed_gain_db = 20.0 * math.log10(percent / 100.0)
+        calibrated_target = analysis["lufs_i"] + observed_gain_db
+        self.set_youtube_target(calibrated_target)
+        self.status.setText("Status: YouTube reference calibrated")
+
+        message = (
+            "YouTube reference updated\n\n"
+            f"Source Integrated LUFS: {analysis['lufs_i']:.1f}\n"
+            f"Observed normalized volume: {percent:.0f}%\n"
+            f"Observed gain: {observed_gain_db:+.1f} dB\n\n"
+            f"New YouTube reference: {self.youtube_target_lufs:.1f} LUFS"
+        )
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "YouTube Calibration", message)
 
     def toggle_youtube_normalizer(self, enabled):
         import audio
