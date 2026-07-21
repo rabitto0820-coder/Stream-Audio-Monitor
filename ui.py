@@ -145,6 +145,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.youtube_readiness_indicator, 1, 5, 1, 4)
 
         layout.addLayout(status_row)
+        self.configure_tooltips()
 
         self.create_meters(layout)
 
@@ -155,6 +156,53 @@ class MainWindow(QMainWindow):
         self.timer.start(16)
 
         QTimer.singleShot(500, self.start_audio)
+
+    def configure_tooltips(self):
+        """Keep the compact controls understandable without changing labels."""
+        self.clear_clip_button.setToolTip(
+            "クリップ検出回数だけを 0 に戻します。"
+        )
+        self.reset_lufs_button.setToolTip(
+            "新しい曲を測る前に押します。\n"
+            "LUFS-I、CLIP、最大 True Peak の記録をリセットします。"
+        )
+        self.youtube_preset_button.setToolTip(
+            "YouTube向けのモニター設定をまとめてONにします。\n"
+            "Opus Preview、YouTube Playback Normalize、Safety Limiterを設定します。"
+        )
+        self.analyze_wav_button.setToolTip(
+            "WAVファイル全体のLUFS、True Peak、YouTubeでの音量変化を確認します。"
+        )
+        self.compare_wav_button.setToolTip(
+            "元のWAVと書き出したプレビューWAVの測定値を比較します。"
+        )
+        self.export_youtube_ab_button.setToolTip(
+            "元の音量に近いOpus版と、YouTube音量調整後のOpus版を2つ書き出します。"
+        )
+        self.export_codec_pack_button.setToolTip(
+            "YouTube想定のOpus版とAAC版をまとめて書き出します。"
+        )
+        self.youtube_checkbox.setToolTip(
+            "再生中の音をFFmpegのOpusで往復圧縮して聴きます。"
+        )
+        self.aac_checkbox.setToolTip(
+            "再生中の音をAAC 128 kbps相当で聴きます。Opus Previewとは同時に使えません。"
+        )
+        self.mute_monitor_checkbox.setToolTip(
+            "音だけを消します。メーターと測定は続きます。"
+        )
+        self.bypass_checkbox.setToolTip(
+            "プレビュー・音量調整・リミッターを通さない元の入力音を聴きます。"
+        )
+        self.youtube_normalize_checkbox.setToolTip(
+            "YouTube基準より大きい音だけを、再生中に下げて確認します。"
+        )
+        self.calibrate_youtube_button.setToolTip(
+            "実際に投稿した動画の統計情報を使い、YouTubeの音量基準をあなたの投稿に合わせます。"
+        )
+        self.youtube_readiness_indicator.setToolTip(
+            "30秒以上の測定結果から、LUFS・最大True Peak・クリップを投稿前に確認します。"
+        )
 
     def create_settings_panel(self):
         frame = QFrame()
