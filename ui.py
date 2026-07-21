@@ -32,6 +32,7 @@ class MainWindow(QMainWindow):
         self.input_devices = []
         self.output_devices = []
         self.saved_settings = load_settings() or {}
+        self.last_candidate_report = ""
         self.current_language = self.saved_settings.get(
             "preview_settings", {}
         ).get("language", "ja")
@@ -1000,8 +1001,41 @@ class MainWindow(QMainWindow):
             "Candidate WAV analysis complete",
             "候補WAVの解析が完了しました",
         )
+        self.last_candidate_report = message
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, title, message)
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle(title)
+        dialog.setText(message)
+        save_button = dialog.addButton(
+            "Save Candidate Report",
+            QMessageBox.ButtonRole.ActionRole,
+        )
+        dialog.addButton(QMessageBox.StandardButton.Close)
+        dialog.exec()
+        if dialog.clickedButton() is save_button:
+            self.save_candidate_report()
+
+    def save_candidate_report(self):
+        if not self.last_candidate_report:
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save candidate report",
+            "candidate_wav_report.txt",
+            "Text files (*.txt)",
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, "w", encoding="utf-8") as report_file:
+                report_file.write(self.last_candidate_report)
+        except OSError as error:
+            QMessageBox.warning(self, "Candidate Report", str(error))
+            return
+
+        self.set_status("Candidate report saved", "候補レポートを保存しました")
 
     def format_offline_youtube_readiness(self, result):
         code = result["youtube_readiness"]
