@@ -203,6 +203,9 @@ class MainWindow(QMainWindow):
         self.analyze_wav_button.setToolTip(
             "WAVファイル全体のLUFS、True Peak、YouTubeでの音量変化を確認します。"
         )
+        self.analyze_candidates_button.setToolTip(
+            "複数の候補WAVを一度に解析し、YouTube投稿時の変化を比較します。"
+        )
         self.compare_wav_button.setToolTip(
             "元のWAVと書き出したプレビューWAVの測定値を比較します。"
         )
@@ -291,6 +294,7 @@ class MainWindow(QMainWindow):
             self.podcast_preset_button,
             self.broadcast_preset_button,
             self.analyze_wav_button,
+            self.analyze_candidates_button,
             self.compare_wav_button,
             self.export_opus_button,
             self.export_aac_button,
@@ -341,6 +345,7 @@ class MainWindow(QMainWindow):
             "start": "開始" if japanese else "Start",
             "stop": "停止" if japanese else "Stop",
             "analyze": "WAVを解析" if japanese else "Analyze WAV",
+            "candidates": "候補WAVを比較" if japanese else "Analyze Candidates",
             "compare": "WAVを比較" if japanese else "Compare WAV",
             "opus_export": "Opus WAVを書き出す" if japanese else "Export Opus WAV",
             "aac_export": "AAC WAVを書き出す" if japanese else "Export AAC WAV",
@@ -391,6 +396,7 @@ class MainWindow(QMainWindow):
         self.start_button.setText(texts["start"])
         self.stop_button.setText(texts["stop"])
         self.analyze_wav_button.setText(texts["analyze"])
+        self.analyze_candidates_button.setText(texts["candidates"])
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
         self.export_aac_button.setText(texts["aac_export"])
@@ -473,6 +479,7 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.analyze_wav_button = QPushButton("Analyze WAV")
+        self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.compare_wav_button = QPushButton("Compare WAV")
         self.export_opus_button = QPushButton("Export Opus WAV")
         self.export_aac_button = QPushButton("Export AAC WAV")
@@ -524,6 +531,7 @@ class MainWindow(QMainWindow):
 
         export_row = QHBoxLayout()
         export_row.addWidget(self.analyze_wav_button)
+        export_row.addWidget(self.analyze_candidates_button)
         export_row.addWidget(self.compare_wav_button)
         export_row.addWidget(self.export_opus_button)
         export_row.addWidget(self.export_aac_button)
@@ -585,6 +593,9 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
+        self.analyze_candidates_button.clicked.connect(
+            self.analyze_candidate_wavs
+        )
         self.compare_wav_button.clicked.connect(self.compare_wav_files)
         self.export_opus_button.clicked.connect(self.export_opus_wav)
         self.export_aac_button.clicked.connect(self.export_aac_wav)
@@ -927,6 +938,65 @@ class MainWindow(QMainWindow):
         self.set_status("WAV analysis complete", "WAV解析が完了しました")
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Analysis", message)
+
+    def analyze_candidate_wavs(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select candidate WAV files",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not paths:
+            return
+
+        japanese = self.current_language == "ja"
+        self.set_status(
+            "Analyzing candidate WAV files...",
+            "候補WAVを解析中...",
+        )
+        results = []
+        errors = []
+
+        for path in paths:
+            try:
+                result = analyze_wav(path, self.youtube_target_lufs)
+                results.append(result)
+            except (OSError, ValueError) as error:
+                errors.append(f"{path}: {error}")
+
+        if not results:
+            self.set_status("Candidate analysis error", "候補WAVの解析エラー")
+            QMessageBox.warning(
+                self,
+                "Candidate Analysis",
+                "No WAV files could be analyzed.",
+            )
+            return
+
+        rows = []
+        for result in results:
+            readiness = self.format_offline_youtube_readiness(result)
+            rows.append(
+                f"{result['name']}\n"
+                f"  LUFS-I: {result['lufs_i']:.1f} | "
+                f"True Peak: {result['true_peak_db']:.1f} dBTP\n"
+                f"  YouTube: {result['youtube_gain_db']:+.1f} dB "
+                f"({result['youtube_percent']:.0f}%) | {readiness}"
+            )
+
+        title = "候補WAVの比較" if japanese else "Candidate WAV Comparison"
+        message = "\n\n".join(rows)
+        if errors:
+            error_title = "解析できなかったファイル" if japanese else "Files not analyzed"
+            message += f"\n\n{error_title}\n" + "\n".join(errors)
+
+        self.set_status(
+            "Candidate WAV analysis complete",
+            "候補WAVの解析が完了しました",
+        )
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, title, message)
 
     def format_offline_youtube_readiness(self, result):
         code = result["youtube_readiness"]
