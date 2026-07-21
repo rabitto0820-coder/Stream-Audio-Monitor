@@ -927,6 +927,7 @@ class MainWindow(QMainWindow):
             f"Integrated LUFS: {result['lufs_i']:.1f}\n"
             f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
             f"Estimated True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
+            f"Stereo Correlation: {result['stereo_correlation']:+.2f}\n\n"
             "YouTube playback estimate\n"
             f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
             f"Volume: {result['youtube_percent']:.0f}%\n\n"
@@ -980,7 +981,8 @@ class MainWindow(QMainWindow):
             rows.append(
                 f"{result['name']}\n"
                 f"  LUFS-I: {result['lufs_i']:.1f} | "
-                f"True Peak: {result['true_peak_db']:.1f} dBTP\n"
+                f"True Peak: {result['true_peak_db']:.1f} dBTP | "
+                f"Correlation: {result['stereo_correlation']:+.2f}\n"
                 f"  YouTube: {result['youtube_gain_db']:+.1f} dB "
                 f"({result['youtube_percent']:.0f}%) | {readiness}"
             )

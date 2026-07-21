@@ -28,6 +28,8 @@ def analyze_wav(path, target_lufs=-14.0):
         meter = LoudnessMeter(sample_rate=sample_rate, channels=channels)
         peak = 0.0
         true_peak = 0.0
+        correlation_total = 0.0
+        correlation_frames = 0
 
         while True:
             raw = wav_file.readframes(16384)
@@ -37,6 +39,11 @@ def analyze_wav(path, target_lufs=-14.0):
             samples = _decode_pcm(raw, sample_width, channels)
             peak = max(peak, float(np.max(np.abs(samples))))
             true_peak = max(true_peak, _estimate_true_peak(samples))
+            if channels == 2:
+                correlation = _stereo_correlation(samples)
+                if correlation is not None:
+                    correlation_total += correlation * len(samples)
+                    correlation_frames += len(samples)
             momentary, short_term, integrated = meter.process(samples)
 
     if total_frames == 0:
@@ -45,12 +52,18 @@ def analyze_wav(path, target_lufs=-14.0):
     youtube_gain_db = min(0.0, float(target_lufs) - integrated)
     youtube_percent = 100.0 * (10.0 ** (youtube_gain_db / 20.0))
     true_peak_db = _decibels(true_peak)
+    stereo_correlation = (
+        correlation_total / correlation_frames
+        if correlation_frames
+        else 1.0
+    )
 
     return {
         "name": file_path.name,
         "duration_seconds": total_frames / sample_rate,
         "sample_rate": sample_rate,
         "channels": channels,
+        "stereo_correlation": stereo_correlation,
         "peak_db": _decibels(peak),
         "true_peak_db": true_peak_db,
         "true_peak_headroom_db": -true_peak_db,
@@ -177,6 +190,18 @@ def _estimate_true_peak(samples):
     """Return a 4x oversampled true-peak estimate for one PCM block."""
     oversampled = resample_poly(samples, 4, 1, axis=0)
     return float(np.max(np.abs(oversampled)))
+
+
+def _stereo_correlation(samples):
+    """Return correlation for one stereo block, ignoring silent blocks."""
+    left = samples[:, 0] - np.mean(samples[:, 0])
+    right = samples[:, 1] - np.mean(samples[:, 1])
+    denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
+
+    if denominator <= 1e-12:
+        return None
+
+    return float(np.dot(left, right) / denominator)
 
 
 def _youtube_advice(integrated_lufs, true_peak_db, youtube_gain_db):
