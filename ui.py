@@ -1461,9 +1461,10 @@ class MainWindow(QMainWindow):
 
     def update_headroom_indicator(self):
         headroom_db = -audio_state.true_peak_db
+        label = "余裕" if self.current_language == "ja" else "Headroom"
 
         self.headroom_indicator.setText(
-            f"Headroom: {headroom_db:.1f} dB"
+            f"{label}: {headroom_db:.1f} dB"
         )
 
         if headroom_db < 0.0:
@@ -1486,21 +1487,22 @@ class MainWindow(QMainWindow):
 
     def update_input_signal_indicator(self):
         input_peak_db = audio_state.input_peak_db
+        japanese = self.current_language == "ja"
 
         if input_peak_db >= -40.0:
-            text = "INPUT: SIGNAL"
+            text = "入力: 信号あり" if japanese else "INPUT: SIGNAL"
             style = """
                 background: #1f5637; color: #d4ffdf;
                 padding: 6px; border-radius: 4px;
             """
         elif input_peak_db > -60.0:
-            text = "INPUT: LOW"
+            text = "入力: 小さい" if japanese else "INPUT: LOW"
             style = """
                 background: #66520e; color: #fff3b0;
                 padding: 6px; border-radius: 4px;
             """
         else:
-            text = "INPUT: SILENT"
+            text = "入力: 無音" if japanese else "INPUT: SILENT"
             style = """
                 background: #4a2525; color: #ffd6d6;
                 padding: 6px; border-radius: 4px;
@@ -1512,13 +1514,14 @@ class MainWindow(QMainWindow):
     def update_lufs_time_indicator(self):
         total_seconds = int(audio_state.lufs_measurement_seconds)
         minutes, seconds = divmod(total_seconds, 60)
+        japanese = self.current_language == "ja"
 
         if total_seconds < 30:
-            progress = "START"
+            progress = "開始" if japanese else "START"
         elif total_seconds < 120:
-            progress = "MEASURING"
+            progress = "測定中" if japanese else "MEASURING"
         else:
-            progress = "LONG"
+            progress = "長時間" if japanese else "LONG"
 
         self.lufs_time_indicator.setText(
             f"LUFS: {minutes:02d}:{seconds:02d} {progress}"
@@ -1566,23 +1569,28 @@ class MainWindow(QMainWindow):
         measured_seconds = audio_state.lufs_measurement_seconds
         max_true_peak_db = audio_state.max_true_peak_db
         lufs_i = audio_state.lufs_i
+        japanese = self.current_language == "ja"
+        title = "YouTube確認" if japanese else "YouTube Check"
 
         if measured_seconds < 30.0:
             remaining = max(0, int(30.0 - measured_seconds))
-            text = f"YouTube Check: measuring ({remaining}s)"
+            progress = "測定中" if japanese else "measuring"
+            text = f"{title}: {progress} ({remaining}s)"
             style = """
                 background: #303030; color: #d0d0d0;
                 padding: 6px; border-radius: 4px;
             """
         elif audio_state.clip_count > 0:
-            text = "YouTube Check: FIX CLIP"
+            result = "クリップを修正" if japanese else "FIX CLIP"
+            text = f"{title}: {result}"
             style = """
                 background: #8b1e1e; color: white;
                 padding: 6px; border-radius: 4px;
             """
         elif max_true_peak_db > -1.0:
+            result = "True Peakを下げる" if japanese else "lower true peak"
             text = (
-                "YouTube Check: lower true peak "
+                f"{title}: {result} "
                 f"(max {max_true_peak_db:.1f} dBTP)"
             )
             style = """
@@ -1591,19 +1599,22 @@ class MainWindow(QMainWindow):
             """
         elif lufs_i > self.youtube_target_lufs + 0.5:
             gain_db = self.youtube_target_lufs - lufs_i
-            text = f"YouTube Check: volume -{abs(gain_db):.1f} dB"
+            volume = "音量" if japanese else "volume"
+            text = f"{title}: {volume} -{abs(gain_db):.1f} dB"
             style = """
                 background: #66520e; color: #fff3b0;
                 padding: 6px; border-radius: 4px;
             """
         elif lufs_i < self.youtube_target_lufs - 3.0:
-            text = "YouTube Check: quieter than reference"
+            result = "基準より小さめ" if japanese else "quieter than reference"
+            text = f"{title}: {result}"
             style = """
                 background: #203a4a; color: #b8e8ff;
                 padding: 6px; border-radius: 4px;
             """
         else:
-            text = "YouTube Check: READY"
+            result = "準備完了" if japanese else "READY"
+            text = f"{title}: {result}"
             style = """
                 background: #1f5637; color: #d4ffdf;
                 padding: 6px; border-radius: 4px;
@@ -1637,12 +1648,14 @@ class MainWindow(QMainWindow):
             audio_state.spectrum
         )
 
-        self.clip_indicator.setText(
-            f"CLIP: {audio_state.clip_count}"
-        )
+        clip_label = "クリップ" if self.current_language == "ja" else "CLIP"
+        self.clip_indicator.setText(f"{clip_label}: {audio_state.clip_count}")
 
+        normalize_label = (
+            "正規化" if self.current_language == "ja" else "Normalize"
+        )
         self.normalizer_gain_indicator.setText(
-            f"Normalize: {audio_state.normalizer_gain_db:+.1f} dB"
+            f"{normalize_label}: {audio_state.normalizer_gain_db:+.1f} dB"
         )
 
         youtube_volume_percent = 100.0 * (
