@@ -2,7 +2,7 @@ import math
 import time
 import sounddevice as sd
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
     QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
@@ -106,6 +106,17 @@ class MainWindow(QMainWindow):
             """
         )
 
+        self.hover_help_indicator = QLabel(
+            "Help: Move the cursor over a control for an explanation."
+        )
+        self.hover_help_indicator.setWordWrap(True)
+        self.hover_help_indicator.setStyleSheet(
+            """
+            background: #202a34; color: #c8e5ff;
+            padding: 7px; border-radius: 4px;
+            """
+        )
+
         self.clear_clip_button = QPushButton("Clear Clip")
         self.clear_clip_button.clicked.connect(self.clear_clip)
 
@@ -143,6 +154,7 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.podcast_preset_button, 1, 3)
         status_row.addWidget(self.broadcast_preset_button, 1, 4)
         status_row.addWidget(self.youtube_readiness_indicator, 1, 5, 1, 4)
+        status_row.addWidget(self.hover_help_indicator, 2, 0, 1, 9)
 
         layout.addLayout(status_row)
         self.configure_tooltips()
@@ -159,6 +171,14 @@ class MainWindow(QMainWindow):
 
     def configure_tooltips(self):
         """Keep the compact controls understandable without changing labels."""
+        self.input_box.setToolTip("音を取り込む入力デバイスを選びます。")
+        self.output_box.setToolTip("モニター音を出す出力デバイスを選びます。")
+        self.rate_box.setToolTip("音声処理に使うサンプリングレートです。")
+        self.buffer_box.setToolTip(
+            "小さいほど遅延は減りますが、音が途切れる場合があります。"
+        )
+        self.start_button.setToolTip("音声入力・モニター・メーターを開始します。")
+        self.stop_button.setToolTip("音声エンジンを完全に停止します。")
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
         )
@@ -179,6 +199,15 @@ class MainWindow(QMainWindow):
         self.export_youtube_ab_button.setToolTip(
             "元の音量に近いOpus版と、YouTube音量調整後のOpus版を2つ書き出します。"
         )
+        self.export_opus_button.setToolTip(
+            "Opus圧縮後のWAVを書き出します。必要ならYouTube音量調整も加えます。"
+        )
+        self.export_aac_button.setToolTip(
+            "AAC 128 kbps圧縮後のWAVを書き出します。"
+        )
+        self.youtube_volume_export_checkbox.setToolTip(
+            "個別のOpus/AAC書き出しに、YouTube想定の音量低下を反映します。"
+        )
         self.export_codec_pack_button.setToolTip(
             "YouTube想定のOpus版とAAC版をまとめて書き出します。"
         )
@@ -187,6 +216,18 @@ class MainWindow(QMainWindow):
         )
         self.aac_checkbox.setToolTip(
             "再生中の音をAAC 128 kbps相当で聴きます。Opus Previewとは同時に使えません。"
+        )
+        self.mono_checkbox.setToolTip(
+            "左右を中央にまとめ、モノラル再生時の聴こえ方を確認します。"
+        )
+        self.bass_mono_checkbox.setToolTip(
+            "150 Hzより低い帯域だけをモノラルにして、低音の安定性を確認します。"
+        )
+        self.phone_speaker_checkbox.setToolTip(
+            "スマホの小型スピーカーに近い帯域で確認します。"
+        )
+        self.opus_bitrate_box.setToolTip(
+            "YouTube Opus Previewで使うビットレートを選びます。"
         )
         self.mute_monitor_checkbox.setToolTip(
             "音だけを消します。メーターと測定は続きます。"
@@ -197,12 +238,95 @@ class MainWindow(QMainWindow):
         self.youtube_normalize_checkbox.setToolTip(
             "YouTube基準より大きい音だけを、再生中に下げて確認します。"
         )
+        self.limiter_checkbox.setToolTip(
+            "設定した上限を超えないように、音のピークを抑えます。"
+        )
+        self.limiter_ceiling_box.setToolTip(
+            "Safety Limiterの上限です。YouTube用途では -1 dBFS が目安です。"
+        )
+        self.normalizer_checkbox.setToolTip(
+            "ライブ入力の音量を目標LUFSへ近づけるプレビューです。"
+        )
+        self.normalizer_target_box.setToolTip(
+            "Loudness Normalizeの目標ラウドネスを選びます。"
+        )
+        self.theme_box.setToolTip("画面の配色を変更します。音声処理には影響しません。")
         self.calibrate_youtube_button.setToolTip(
             "実際に投稿した動画の統計情報を使い、YouTubeの音量基準をあなたの投稿に合わせます。"
         )
+        self.reset_youtube_target_button.setToolTip(
+            "YouTubeの基準を標準の -14 LUFS に戻します。"
+        )
+        self.input_signal_indicator.setToolTip("現在、入力デバイスから音が届いているかを示します。")
+        self.lufs_time_indicator.setToolTip("Integrated LUFSを測定している時間です。")
+        self.codec_indicator.setToolTip("現在有効な圧縮プレビューの状態です。")
+        self.normalizer_gain_indicator.setToolTip("Loudness Normalizeが現在加えている音量変化です。")
+        self.youtube_gain_indicator.setToolTip("YouTube Playback Normalizeの現在の音量変化と予想音量です。")
+        self.headroom_indicator.setToolTip("現在のTrue Peakから0 dBTPまでに残る余裕です。")
+        self.clip_indicator.setToolTip("測定開始後に検出したクリップ回数です。")
         self.youtube_readiness_indicator.setToolTip(
             "30秒以上の測定結果から、LUFS・最大True Peak・クリップを投稿前に確認します。"
         )
+
+        hover_targets = (
+            self.input_box,
+            self.output_box,
+            self.rate_box,
+            self.buffer_box,
+            self.start_button,
+            self.stop_button,
+            self.clear_clip_button,
+            self.reset_lufs_button,
+            self.youtube_preset_button,
+            self.podcast_preset_button,
+            self.broadcast_preset_button,
+            self.analyze_wav_button,
+            self.compare_wav_button,
+            self.export_opus_button,
+            self.export_aac_button,
+            self.export_youtube_ab_button,
+            self.export_codec_pack_button,
+            self.youtube_volume_export_checkbox,
+            self.youtube_checkbox,
+            self.aac_checkbox,
+            self.mono_checkbox,
+            self.bass_mono_checkbox,
+            self.phone_speaker_checkbox,
+            self.opus_bitrate_box,
+            self.mute_monitor_checkbox,
+            self.bypass_checkbox,
+            self.limiter_checkbox,
+            self.limiter_ceiling_box,
+            self.normalizer_checkbox,
+            self.youtube_normalize_checkbox,
+            self.normalizer_target_box,
+            self.theme_box,
+            self.calibrate_youtube_button,
+            self.reset_youtube_target_button,
+            self.input_signal_indicator,
+            self.lufs_time_indicator,
+            self.codec_indicator,
+            self.normalizer_gain_indicator,
+            self.youtube_gain_indicator,
+            self.headroom_indicator,
+            self.clip_indicator,
+            self.youtube_readiness_indicator,
+        )
+
+        for widget in hover_targets:
+            widget.installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Enter:
+            description = watched.toolTip()
+            if description:
+                self.hover_help_indicator.setText(f"Help: {description}")
+        elif event.type() == QEvent.Type.Leave:
+            self.hover_help_indicator.setText(
+                "Help: Move the cursor over a control for an explanation."
+            )
+
+        return super().eventFilter(watched, event)
 
     def create_settings_panel(self):
         frame = QFrame()
