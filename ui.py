@@ -31,7 +31,10 @@ class MainWindow(QMainWindow):
 
         self.input_devices = []
         self.output_devices = []
-        self.saved_settings = {}
+        self.saved_settings = load_settings() or {}
+        self.current_language = self.saved_settings.get(
+            "preview_settings", {}
+        ).get("language", "ja")
 
         self.rate_values = [44100, 48000, 96000]
         self.buffer_values = [256, 512, 1024, 2048, 4096]
@@ -51,11 +54,17 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(central)
         layout.setSpacing(12)
 
-        title = QLabel("Stream Audio Monitor")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-size: 22pt; font-weight: bold;")
+        self.title_label = QLabel("Stream Audio Monitor")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 22pt; font-weight: bold;")
+        self.language_button = QPushButton()
+        self.language_button.clicked.connect(self.toggle_language)
 
-        layout.addWidget(title)
+        title_row = QHBoxLayout()
+        title_row.addStretch()
+        title_row.addWidget(self.title_label, 1)
+        title_row.addWidget(self.language_button)
+        layout.addLayout(title_row)
         layout.addWidget(self.create_settings_panel())
 
         status_row = QGridLayout()
@@ -158,6 +167,7 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(status_row)
         self.configure_tooltips()
+        self.apply_language()
 
         self.create_meters(layout)
 
@@ -316,15 +326,114 @@ class MainWindow(QMainWindow):
         for widget in hover_targets:
             widget.installEventFilter(self)
 
+    def toggle_language(self):
+        language = "en" if self.current_language == "ja" else "ja"
+        self.current_language = language
+        self.apply_language()
+        self.save_current_settings()
+
+    def apply_language(self):
+        japanese = self.current_language == "ja"
+
+        texts = {
+            "title": "ストリーム音声モニター" if japanese else "Stream Audio Monitor",
+            "language": "Language: 日本語" if japanese else "Language: English",
+            "start": "開始" if japanese else "Start",
+            "stop": "停止" if japanese else "Stop",
+            "analyze": "WAVを解析" if japanese else "Analyze WAV",
+            "compare": "WAVを比較" if japanese else "Compare WAV",
+            "opus_export": "Opus WAVを書き出す" if japanese else "Export Opus WAV",
+            "aac_export": "AAC WAVを書き出す" if japanese else "Export AAC WAV",
+            "ab_export": "YouTube A/Bを書き出す" if japanese else "Export YouTube A/B",
+            "pack_export": "コーデックパックを書き出す" if japanese else "Export Codec Pack",
+            "youtube_volume": "YouTube音量を反映" if japanese else "Apply YouTube Volume",
+            "opus_preview": "YouTube Opusプレビュー" if japanese else "YouTube Opus Preview",
+            "aac_preview": "AACプレビュー" if japanese else "AAC Preview",
+            "mono": "モノラルプレビュー" if japanese else "Mono Preview",
+            "bass_mono": "低音をモノラル化 (150 Hz)" if japanese else "Bass Mono (150 Hz)",
+            "phone": "スマホスピーカープレビュー" if japanese else "Phone Speaker Preview",
+            "mute": "モニターをミュート" if japanese else "Mute Monitor",
+            "bypass": "エフェクトをバイパス" if japanese else "Bypass Effects",
+            "limiter": "セーフティリミッター" if japanese else "Safety Limiter",
+            "normalize": "ラウドネスノーマライズ" if japanese else "Loudness Normalize",
+            "youtube_normalize": "YouTube再生ノーマライズ" if japanese else "YouTube Playback Normalize",
+            "clear_clip": "クリップを消去" if japanese else "Clear Clip",
+            "reset_lufs": "LUFS-Iをリセット" if japanese else "Reset LUFS-I",
+            "youtube": "YouTube" if japanese else "YouTube",
+            "podcast": "ポッドキャスト" if japanese else "Podcast",
+            "broadcast": "放送" if japanese else "Broadcast",
+            "calibrate": "YouTubeを調整" if japanese else "Calibrate YouTube",
+            "reset_yt": "YT基準をリセット" if japanese else "Reset YT Ref",
+            "input": "入力" if japanese else "Input",
+            "output": "出力" if japanese else "Output",
+            "rate": "レート" if japanese else "Rate",
+            "buffer": "バッファ" if japanese else "Buffer",
+            "opus": "Opus" if japanese else "Opus",
+            "ceiling": "上限" if japanese else "Ceiling",
+            "target": "目標" if japanese else "Target",
+            "skin": "スキン" if japanese else "Skin",
+            "monitor_note": (
+                "ミュート中もメーターは動作します。バイパスは元の入力音を再生します。"
+                if japanese else "Mute keeps meters running. Bypass plays the raw input."
+            ),
+            "youtube_note": (
+                "YouTubeの詳細統計にある正規化音量の％を使います。"
+                if japanese else "Use the normalized volume % from YouTube Stats for Nerds."
+            ),
+            "help": (
+                "ヘルプ: 操作項目にカーソルを合わせると説明を表示します。"
+                if japanese else "Help: Move the cursor over a control for an explanation."
+            ),
+        }
+
+        self.title_label.setText(texts["title"])
+        self.language_button.setText(texts["language"])
+        self.start_button.setText(texts["start"])
+        self.stop_button.setText(texts["stop"])
+        self.analyze_wav_button.setText(texts["analyze"])
+        self.compare_wav_button.setText(texts["compare"])
+        self.export_opus_button.setText(texts["opus_export"])
+        self.export_aac_button.setText(texts["aac_export"])
+        self.export_youtube_ab_button.setText(texts["ab_export"])
+        self.export_codec_pack_button.setText(texts["pack_export"])
+        self.youtube_volume_export_checkbox.setText(texts["youtube_volume"])
+        self.youtube_checkbox.setText(texts["opus_preview"])
+        self.aac_checkbox.setText(texts["aac_preview"])
+        self.mono_checkbox.setText(texts["mono"])
+        self.bass_mono_checkbox.setText(texts["bass_mono"])
+        self.phone_speaker_checkbox.setText(texts["phone"])
+        self.mute_monitor_checkbox.setText(texts["mute"])
+        self.bypass_checkbox.setText(texts["bypass"])
+        self.limiter_checkbox.setText(texts["limiter"])
+        self.normalizer_checkbox.setText(texts["normalize"])
+        self.youtube_normalize_checkbox.setText(texts["youtube_normalize"])
+        self.clear_clip_button.setText(texts["clear_clip"])
+        self.reset_lufs_button.setText(texts["reset_lufs"])
+        self.youtube_preset_button.setText(texts["youtube"])
+        self.podcast_preset_button.setText(texts["podcast"])
+        self.broadcast_preset_button.setText(texts["broadcast"])
+        self.calibrate_youtube_button.setText(texts["calibrate"])
+        self.reset_youtube_target_button.setText(texts["reset_yt"])
+        self.input_label.setText(texts["input"])
+        self.output_label.setText(texts["output"])
+        self.rate_label.setText(texts["rate"])
+        self.buffer_label.setText(texts["buffer"])
+        self.opus_label.setText(texts["opus"])
+        self.ceiling_label.setText(texts["ceiling"])
+        self.target_label.setText(texts["target"])
+        self.skin_label.setText(texts["skin"])
+        self.monitor_note_label.setText(texts["monitor_note"])
+        self.youtube_note_label.setText(texts["youtube_note"])
+        self.default_help_text = texts["help"]
+        self.hover_help_indicator.setText(self.default_help_text)
+
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.Enter:
             description = watched.toolTip()
             if description:
                 self.hover_help_indicator.setText(f"Help: {description}")
         elif event.type() == QEvent.Type.Leave:
-            self.hover_help_indicator.setText(
-                "Help: Move the cursor over a control for an explanation."
-            )
+            self.hover_help_indicator.setText(self.default_help_text)
 
         return super().eventFilter(watched, event)
 
@@ -397,13 +506,17 @@ class MainWindow(QMainWindow):
         )
 
         device_row = QHBoxLayout()
-        device_row.addWidget(QLabel("Input"))
+        self.input_label = QLabel("Input")
+        self.output_label = QLabel("Output")
+        self.rate_label = QLabel("Rate")
+        self.buffer_label = QLabel("Buffer")
+        device_row.addWidget(self.input_label)
         device_row.addWidget(self.input_box, 2)
-        device_row.addWidget(QLabel("Output"))
+        device_row.addWidget(self.output_label)
         device_row.addWidget(self.output_box, 2)
-        device_row.addWidget(QLabel("Rate"))
+        device_row.addWidget(self.rate_label)
         device_row.addWidget(self.rate_box)
-        device_row.addWidget(QLabel("Buffer"))
+        device_row.addWidget(self.buffer_label)
         device_row.addWidget(self.buffer_box)
         device_row.addWidget(self.start_button)
         device_row.addWidget(self.stop_button)
@@ -426,7 +539,8 @@ class MainWindow(QMainWindow):
         preview_row.addWidget(self.mono_checkbox)
         preview_row.addWidget(self.bass_mono_checkbox)
         preview_row.addWidget(self.phone_speaker_checkbox)
-        preview_row.addWidget(QLabel("Opus"))
+        self.opus_label = QLabel("Opus")
+        preview_row.addWidget(self.opus_label)
         preview_row.addWidget(self.opus_bitrate_box)
         preview_row.addStretch()
         layout.addLayout(preview_row)
@@ -434,19 +548,25 @@ class MainWindow(QMainWindow):
         monitor_row = QHBoxLayout()
         monitor_row.addWidget(self.mute_monitor_checkbox)
         monitor_row.addWidget(self.bypass_checkbox)
-        monitor_row.addWidget(QLabel("Mute keeps meters running. Bypass plays the raw input."))
+        self.monitor_note_label = QLabel(
+            "Mute keeps meters running. Bypass plays the raw input."
+        )
+        monitor_row.addWidget(self.monitor_note_label)
         monitor_row.addStretch()
         layout.addLayout(monitor_row)
 
         processing_row = QHBoxLayout()
         processing_row.addWidget(self.limiter_checkbox)
-        processing_row.addWidget(QLabel("Ceiling"))
+        self.ceiling_label = QLabel("Ceiling")
+        self.target_label = QLabel("Target")
+        self.skin_label = QLabel("Skin")
+        processing_row.addWidget(self.ceiling_label)
         processing_row.addWidget(self.limiter_ceiling_box)
         processing_row.addWidget(self.normalizer_checkbox)
         processing_row.addWidget(self.youtube_normalize_checkbox)
-        processing_row.addWidget(QLabel("Target"))
+        processing_row.addWidget(self.target_label)
         processing_row.addWidget(self.normalizer_target_box)
-        processing_row.addWidget(QLabel("Skin"))
+        processing_row.addWidget(self.skin_label)
         processing_row.addWidget(self.theme_box)
         processing_row.addStretch()
         layout.addLayout(processing_row)
@@ -455,9 +575,10 @@ class MainWindow(QMainWindow):
         youtube_row.addWidget(self.youtube_target_label)
         youtube_row.addWidget(self.calibrate_youtube_button)
         youtube_row.addWidget(self.reset_youtube_target_button)
-        youtube_row.addWidget(
-            QLabel("Use the normalized volume % from YouTube Stats for Nerds.")
+        self.youtube_note_label = QLabel(
+            "Use the normalized volume % from YouTube Stats for Nerds."
         )
+        youtube_row.addWidget(self.youtube_note_label)
         youtube_row.addStretch()
         layout.addLayout(youtube_row)
 
@@ -645,7 +766,12 @@ class MainWindow(QMainWindow):
         """Restore monitor choices saved when the app was last closed."""
         saved = self.saved_settings.get("preview_settings", {})
         if not saved:
+            self.apply_language()
             return
+
+        self.current_language = saved.get(
+            "language", self.current_language
+        )
 
         theme = saved.get("theme")
         if theme in theme_names():
@@ -696,6 +822,7 @@ class MainWindow(QMainWindow):
         # off automatically; only one real-time codec preview can be active.
         self.aac_checkbox.setChecked(saved.get("aac_preview", False))
         self.youtube_checkbox.setChecked(saved.get("youtube_preview", False))
+        self.apply_language()
 
     def save_current_settings(self):
         """Save devices and all monitor choices for the next launch."""
@@ -720,6 +847,7 @@ class MainWindow(QMainWindow):
                 self.youtube_normalize_checkbox.isChecked()
             ),
             "youtube_target_lufs": self.youtube_target_lufs,
+            "language": self.current_language,
         }
 
         save_settings(
