@@ -64,6 +64,7 @@ def analyze_wav(path, target_lufs=-14.0):
         "sample_rate": sample_rate,
         "channels": channels,
         "stereo_correlation": stereo_correlation,
+        "stereo_check": _stereo_check(channels, stereo_correlation),
         "peak_db": _decibels(peak),
         "true_peak_db": true_peak_db,
         "true_peak_headroom_db": -true_peak_db,
@@ -202,6 +203,17 @@ def _stereo_correlation(samples):
         return None
 
     return float(np.dot(left, right) / denominator)
+
+
+def _stereo_check(channels, correlation):
+    """Classify mono compatibility without treating stereo width as a score."""
+    if channels == 1:
+        return "MONO"
+    if correlation >= 0.2:
+        return "STABLE"
+    if correlation >= -0.2:
+        return "CHECK_MONO"
+    return "PHASE_RISK"
 
 
 def _youtube_advice(integrated_lufs, true_peak_db, youtube_gain_db):

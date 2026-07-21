@@ -928,6 +928,7 @@ class MainWindow(QMainWindow):
             f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
             f"Estimated True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
             f"Stereo Correlation: {result['stereo_correlation']:+.2f}\n\n"
+            f"Mono Check: {self.format_stereo_check(result)}\n\n"
             "YouTube playback estimate\n"
             f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
             f"Volume: {result['youtube_percent']:.0f}%\n\n"
@@ -978,11 +979,13 @@ class MainWindow(QMainWindow):
         rows = []
         for result in results:
             readiness = self.format_offline_youtube_readiness(result)
+            stereo_check = self.format_stereo_check(result)
             rows.append(
                 f"{result['name']}\n"
                 f"  LUFS-I: {result['lufs_i']:.1f} | "
                 f"True Peak: {result['true_peak_db']:.1f} dBTP | "
                 f"Correlation: {result['stereo_correlation']:+.2f}\n"
+                f"  Mono Check: {stereo_check}\n"
                 f"  YouTube: {result['youtube_gain_db']:+.1f} dB "
                 f"({result['youtube_percent']:.0f}%) | {readiness}"
             )
@@ -1021,6 +1024,18 @@ class MainWindow(QMainWindow):
             return "基準より小さめ" if japanese else "Quieter than reference"
 
         return "準備完了" if japanese else "READY"
+
+    def format_stereo_check(self, result):
+        check = result["stereo_check"]
+        japanese = self.current_language == "ja"
+
+        if check == "MONO":
+            return "モノラル音源" if japanese else "Mono source"
+        if check == "STABLE":
+            return "安定" if japanese else "Stable"
+        if check == "CHECK_MONO":
+            return "モノラルで要確認" if japanese else "Check in mono"
+        return "位相に注意" if japanese else "Phase risk"
 
     def compare_wav_files(self):
         reference_path, _ = QFileDialog.getOpenFileName(
