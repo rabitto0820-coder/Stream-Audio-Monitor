@@ -117,6 +117,7 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.lufs_i = -70.0
     audio_state.lufs_measurement_seconds = 0.0
     audio_state.codec_preview_mode = "OFF"
+    audio_state.codec_delta_active = False
     audio_state.codec_difference.fill(0.0)
     audio_state.codec_difference_active = False
 
@@ -300,6 +301,7 @@ def callback(indata, outdata, frames, time_info, status):
         audio_state.codec_difference.fill(0.0)
 
     delta_mode_active = codec_delta_monitor and codec_active
+    audio_state.codec_delta_active = delta_mode_active
 
     if delta_mode_active:
         # Audition only the signal changed by the codec.

@@ -17,6 +17,7 @@ class AudioState:
         self.normalizer_gain_db = 0.0
         self.youtube_gain_db = 0.0
         self.codec_preview_mode = "OFF"
+        self.codec_delta_active = False
 
         self.rms_db = -60.0
 

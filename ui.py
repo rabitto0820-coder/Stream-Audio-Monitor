@@ -1912,9 +1912,16 @@ class MainWindow(QMainWindow):
 
     def update_codec_indicator(self):
         mode = audio_state.codec_preview_mode
-        self.codec_indicator.setText(f"CODEC: {mode}")
+        delta_active = audio_state.codec_delta_active
+        suffix = " + DELTA" if delta_active else ""
+        self.codec_indicator.setText(f"CODEC: {mode}{suffix}")
 
-        if mode == "REAL OPUS":
+        if delta_active:
+            style = """
+                background: #4a245c; color: #ffd8ff;
+                padding: 6px; border-radius: 4px;
+            """
+        elif mode == "REAL OPUS":
             style = """
                 background: #1f5637; color: #d4ffdf;
                 padding: 6px; border-radius: 4px;
