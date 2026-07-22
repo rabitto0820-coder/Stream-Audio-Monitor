@@ -293,8 +293,17 @@ def callback(indata, outdata, frames, time_info, status):
         difference_db = np.abs(
             20.0 * np.log10((codec_fft + 1e-8) / (reference_fft + 1e-8))
         )
-        # 18 dB or more is displayed at full height.
-        difference = np.clip(difference_db / 18.0, 0.0, 1.0)
+        # Ignore near-silent source bands and tiny changes. Otherwise, a
+        # numerical difference in silence can look like a codec change.
+        reference_peak = max(float(np.max(reference_fft)), 1e-8)
+        source_present = reference_fft >= reference_peak * (10.0 ** (-48.0 / 20.0))
+        meaningful_difference_db = np.where(
+            source_present,
+            np.maximum(0.0, difference_db - 1.5),
+            0.0,
+        )
+        # A 1.5 dB difference starts the graph; 18 dB reaches full height.
+        difference = np.clip(meaningful_difference_db / 16.5, 0.0, 1.0)
         audio_state.codec_difference[:] = 0.0
         audio_state.codec_difference[:min(512, len(difference))] = difference[:512]
     else:
