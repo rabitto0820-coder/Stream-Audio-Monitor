@@ -118,6 +118,7 @@ def export_opus_delta(
     source_path,
     destination_path,
     bitrate_kbps=128,
+    delta_gain_db=6.0,
 ):
     """Export only the audible difference between a WAV and its Opus preview."""
     ffmpeg = shutil.which("ffmpeg")
@@ -165,7 +166,12 @@ def export_opus_delta(
             "-i", str(source),
             "-i", str(decoded),
             "-filter_complex",
-            "[0:a][1:a]amix=inputs=2:duration=shortest:weights='1 -1':normalize=0,volume=6dB,alimiter=limit=0.99",
+            (
+                "[0:a][1:a]amix=inputs=2:duration=shortest:"
+                "weights='1 -1':normalize=0,"
+                f"volume={float(delta_gain_db):.1f}dB,"
+                "alimiter=limit=0.99"
+            ),
             "-c:a", "pcm_s24le",
             str(destination),
         ])

@@ -1249,6 +1249,19 @@ class MainWindow(QMainWindow):
         if not destination_path:
             return
 
+        gain_text, accepted = QInputDialog.getItem(
+            self,
+            "Delta Gain",
+            "Delta WAV gain:",
+            ["+0 dB", "+6 dB", "+12 dB"],
+            1,
+            False,
+        )
+        if not accepted:
+            return
+
+        delta_gain_db = float(gain_text.split()[0])
+
         try:
             bitrate = self.current_opus_bitrate()
             self.set_status(
@@ -1259,6 +1272,7 @@ class MainWindow(QMainWindow):
                 source_path,
                 destination_path,
                 bitrate,
+                delta_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Opus Delta export error", "Opus Delta export error")
@@ -1270,7 +1284,7 @@ class MainWindow(QMainWindow):
             "Created Opus Delta WAV\n\n"
             "This file contains only the sound changed by Opus.\n"
             f"Bitrate: {bitrate} kbps\n"
-            "Delta gain: +6.0 dB\n"
+            f"Delta gain: {delta_gain_db:+.1f} dB\n"
             f"File: {output_path}"
         )
         print(message.replace("\n", " | "))
