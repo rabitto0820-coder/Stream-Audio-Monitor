@@ -13,7 +13,9 @@ from PyQt6.QtWidgets import (
 from audio_state import audio_state
 from aac_exporter import export_aac_preview
 from file_analyzer import analyze_wav, compare_wavs
-from opus_exporter import export_opus_preview, export_youtube_ab_previews
+from opus_exporter import (
+    export_opus_delta, export_opus_preview, export_youtube_ab_previews,
+)
 from preview_pack import export_codec_pack
 from settings import load_settings, save_settings
 from themes import apply_theme, theme_names
@@ -222,6 +224,9 @@ class MainWindow(QMainWindow):
         self.export_opus_button.setToolTip(
             "Opus圧縮後のWAVを書き出します。必要ならYouTube音量調整も加えます。"
         )
+        self.export_delta_button.setToolTip(
+            "Export only the sound changed by Opus, for offline listening."
+        )
         self.export_aac_button.setToolTip(
             "AAC 128 kbps圧縮後のWAVを書き出します。"
         )
@@ -307,6 +312,7 @@ class MainWindow(QMainWindow):
             self.analyze_candidates_button,
             self.compare_wav_button,
             self.export_opus_button,
+            self.export_delta_button,
             self.export_aac_button,
             self.export_youtube_ab_button,
             self.export_codec_pack_button,
@@ -410,6 +416,7 @@ class MainWindow(QMainWindow):
         self.analyze_candidates_button.setText(texts["candidates"])
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
+        self.export_delta_button.setText("Export Opus Delta")
         self.export_aac_button.setText(texts["aac_export"])
         self.export_youtube_ab_button.setText(texts["ab_export"])
         self.export_codec_pack_button.setText(texts["pack_export"])
@@ -495,6 +502,7 @@ class MainWindow(QMainWindow):
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.compare_wav_button = QPushButton("Compare WAV")
         self.export_opus_button = QPushButton("Export Opus WAV")
+        self.export_delta_button = QPushButton("Export Opus Delta")
         self.export_aac_button = QPushButton("Export AAC WAV")
         self.export_youtube_ab_button = QPushButton("Export YouTube A/B")
         self.export_codec_pack_button = QPushButton("Export Codec Pack")
@@ -548,6 +556,7 @@ class MainWindow(QMainWindow):
         export_row.addWidget(self.analyze_candidates_button)
         export_row.addWidget(self.compare_wav_button)
         export_row.addWidget(self.export_opus_button)
+        export_row.addWidget(self.export_delta_button)
         export_row.addWidget(self.export_aac_button)
         export_row.addWidget(self.export_youtube_ab_button)
         export_row.addWidget(self.export_codec_pack_button)
@@ -613,6 +622,7 @@ class MainWindow(QMainWindow):
         )
         self.compare_wav_button.clicked.connect(self.compare_wav_files)
         self.export_opus_button.clicked.connect(self.export_opus_wav)
+        self.export_delta_button.clicked.connect(self.export_opus_delta_wav)
         self.export_aac_button.clicked.connect(self.export_aac_wav)
         self.export_youtube_ab_button.clicked.connect(
             self.export_youtube_ab_wavs
@@ -1215,6 +1225,56 @@ class MainWindow(QMainWindow):
         )
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "Opus Export", message)
+
+    def export_opus_delta_wav(self):
+        source_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select source WAV",
+            "",
+            "WAV files (*.wav)",
+        )
+
+        if not source_path:
+            return
+
+        default_path = source_path.rsplit(".", 1)[0]
+        default_path += f"_opus_{self.current_opus_bitrate()}k_delta.wav"
+        destination_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Opus Delta WAV",
+            default_path,
+            "WAV files (*.wav)",
+        )
+
+        if not destination_path:
+            return
+
+        try:
+            bitrate = self.current_opus_bitrate()
+            self.set_status(
+                "Exporting Opus Delta...",
+                "Exporting Opus Delta...",
+            )
+            output_path = export_opus_delta(
+                source_path,
+                destination_path,
+                bitrate,
+            )
+        except (OSError, RuntimeError, ValueError) as error:
+            self.set_status("Opus Delta export error", "Opus Delta export error")
+            QMessageBox.warning(self, "Opus Delta Export", str(error))
+            return
+
+        self.set_status("Opus Delta exported", "Opus Delta exported")
+        message = (
+            "Created Opus Delta WAV\n\n"
+            "This file contains only the sound changed by Opus.\n"
+            f"Bitrate: {bitrate} kbps\n"
+            "Delta gain: +6.0 dB\n"
+            f"File: {output_path}"
+        )
+        print(message.replace("\n", " | "))
+        QMessageBox.information(self, "Opus Delta Export", message)
 
     def export_aac_wav(self):
         source_path, _ = QFileDialog.getOpenFileName(

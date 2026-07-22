@@ -114,6 +114,65 @@ def export_youtube_ab_previews(
     }
 
 
+def export_opus_delta(
+    source_path,
+    destination_path,
+    bitrate_kbps=128,
+):
+    """Export only the audible difference between a WAV and its Opus preview."""
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        raise RuntimeError("FFmpeg was not found. Install FFmpeg and restart.")
+
+    source = Path(source_path)
+    destination = Path(destination_path)
+    if not source.is_file():
+        raise ValueError("The source WAV file was not found.")
+
+    if destination.suffix.lower() != ".wav":
+        destination = destination.with_suffix(".wav")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="stream_audio_monitor_") as folder:
+        encoded = Path(folder) / "delta_preview.opus.ogg"
+        decoded = Path(folder) / "delta_preview_decoded.wav"
+
+        _run_ffmpeg([
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", str(source),
+            "-c:a", "libopus",
+            "-application", "audio",
+            "-b:a", f"{int(bitrate_kbps)}k",
+            str(encoded),
+        ])
+        _run_ffmpeg([
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", str(encoded),
+            "-c:a", "pcm_s24le",
+            str(decoded),
+        ])
+        _run_ffmpeg([
+            ffmpeg,
+            "-y",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", str(source),
+            "-i", str(decoded),
+            "-filter_complex",
+            "[0:a][1:a]amix=inputs=2:duration=shortest:weights='1 -1':normalize=0,volume=6dB,alimiter=limit=0.99",
+            "-c:a", "pcm_s24le",
+            str(destination),
+        ])
+
+    return destination
+
+
 def _available_ab_paths(source, folder, bitrate_kbps):
     """Return unused matching output names without overwriting old previews."""
     base = f"{source.stem}_opus_{bitrate_kbps}k"
