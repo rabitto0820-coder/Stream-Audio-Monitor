@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
         status_row.setVerticalSpacing(6)
 
         self.status = QLabel("Status: Ready")
+        self.latency_indicator = QLabel("Latency: -- ms")
 
         self.input_signal_indicator = QLabel("INPUT: SILENT")
 
@@ -154,6 +155,7 @@ class MainWindow(QMainWindow):
         )
 
         status_row.addWidget(self.status, 0, 0, 1, 2)
+        status_row.addWidget(self.latency_indicator, 0, 9)
         status_row.addWidget(self.input_signal_indicator, 0, 2)
         status_row.addWidget(self.lufs_time_indicator, 0, 3)
         status_row.addWidget(self.codec_indicator, 0, 4)
@@ -1865,6 +1867,10 @@ class MainWindow(QMainWindow):
         self.youtube_readiness_indicator.setStyleSheet(style)
 
     def update_gui(self):
+        rate = self.rate_values[self.rate_box.currentIndex()]
+        buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
+        latency_ms = 2000.0 * buffer_size / rate
+        self.latency_indicator.setText(f"Latency: ~{latency_ms:.0f} ms")
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
         self.rms_meter.set_level(audio_state.rms_db)
