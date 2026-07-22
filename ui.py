@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
         self.output_devices = []
         self.saved_settings = load_settings() or {}
         self.last_candidate_report = ""
+        self.codec_focus_enabled = False
         self.current_language = self.saved_settings.get(
             "preview_settings", {}
         ).get("language", "ja")
@@ -245,6 +246,9 @@ class MainWindow(QMainWindow):
         self.codec_delta_checkbox.setToolTip(
             "Hear only the sound changed by Opus or AAC. Use with a codec preview."
         )
+        self.codec_focus_button.setToolTip(
+            "Hide general meters and focus on the spectrum and codec difference."
+        )
         self.mono_checkbox.setToolTip(
             "左右を中央にまとめ、モノラル再生時の聴こえ方を確認します。"
         )
@@ -320,6 +324,7 @@ class MainWindow(QMainWindow):
             self.youtube_checkbox,
             self.aac_checkbox,
             self.codec_delta_checkbox,
+            self.codec_focus_button,
             self.mono_checkbox,
             self.bass_mono_checkbox,
             self.phone_speaker_checkbox,
@@ -514,6 +519,8 @@ class MainWindow(QMainWindow):
         self.youtube_checkbox = QCheckBox("Opus Preview (YouTube)")
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.codec_delta_checkbox = QCheckBox("Codec Delta Monitor")
+        self.codec_focus_button = QPushButton("Codec Focus: OFF")
+        self.codec_focus_button.clicked.connect(self.toggle_codec_focus)
         self.mono_checkbox = QCheckBox("Mono Preview")
         self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
         self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
@@ -580,6 +587,7 @@ class MainWindow(QMainWindow):
         monitor_row = QHBoxLayout()
         monitor_row.addWidget(self.mute_monitor_checkbox)
         monitor_row.addWidget(self.bypass_checkbox)
+        monitor_row.addWidget(self.codec_focus_button)
         self.monitor_note_label = QLabel(
             "Mute keeps meters running. Bypass plays the raw input."
         )
@@ -704,6 +712,18 @@ class MainWindow(QMainWindow):
         self.waveform = WaveformWidget()
         self.spectrum = SpectrumWidget()
         self.codec_difference = CodecDifferenceWidget()
+
+        self.detail_meter_widgets = (
+            self.peak_meter,
+            self.true_peak_meter,
+            self.rms_meter,
+            self.lufs_m_meter,
+            self.lufs_s_meter,
+            self.lufs_i_meter,
+            self.correlation_meter,
+            self.phase_scope,
+            self.waveform,
+        )
 
         for widget in (
             self.peak_meter,
@@ -890,6 +910,7 @@ class MainWindow(QMainWindow):
         self.codec_delta_checkbox.setChecked(
             saved.get("codec_delta_monitor", False)
         )
+        self.set_codec_focus(saved.get("codec_focus", False))
         self.apply_language()
 
         geometry = saved.get("window_geometry")
@@ -918,6 +939,7 @@ class MainWindow(QMainWindow):
             "youtube_preview": self.youtube_checkbox.isChecked(),
             "aac_preview": self.aac_checkbox.isChecked(),
             "codec_delta_monitor": self.codec_delta_checkbox.isChecked(),
+            "codec_focus": self.codec_focus_enabled,
             "mono_preview": self.mono_checkbox.isChecked(),
             "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
@@ -1507,6 +1529,24 @@ class MainWindow(QMainWindow):
                 "Codec Delta Monitor: changed sound only",
                 "Codec Delta Monitor: changed sound only",
             )
+
+    def toggle_codec_focus(self):
+        self.set_codec_focus(not self.codec_focus_enabled)
+        self.save_current_settings()
+
+    def set_codec_focus(self, enabled):
+        self.codec_focus_enabled = bool(enabled)
+        for widget in self.detail_meter_widgets:
+            widget.setVisible(not self.codec_focus_enabled)
+
+        if self.codec_focus_enabled:
+            self.codec_focus_button.setText("Codec Focus: ON")
+            self.codec_focus_button.setStyleSheet(
+                "background: #1f5637; color: #d4ffdf; font-weight: bold;"
+            )
+        else:
+            self.codec_focus_button.setText("Codec Focus: OFF")
+            self.codec_focus_button.setStyleSheet("")
 
     def toggle_mono_preview(self, enabled):
         import audio
