@@ -137,6 +137,8 @@ class MainWindow(QMainWindow):
         )
 
         self.youtube_preset_button = QPushButton("YouTube")
+        self.browser_sample_button = QPushButton("Browser Sample")
+        self.browser_sample_button.clicked.connect(self.apply_browser_sample_preset)
         self.youtube_preset_button.clicked.connect(
             self.apply_youtube_preset
         )
@@ -162,9 +164,10 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.clear_clip_button, 1, 0)
         status_row.addWidget(self.reset_lufs_button, 1, 1)
         status_row.addWidget(self.youtube_preset_button, 1, 2)
+        status_row.addWidget(self.browser_sample_button, 1, 5)
         status_row.addWidget(self.podcast_preset_button, 1, 3)
         status_row.addWidget(self.broadcast_preset_button, 1, 4)
-        status_row.addWidget(self.youtube_readiness_indicator, 1, 5, 1, 4)
+        status_row.addWidget(self.youtube_readiness_indicator, 1, 6, 1, 3)
         status_row.addWidget(self.hover_help_indicator, 2, 0, 1, 9)
 
         layout.addLayout(status_row)
@@ -1685,11 +1688,17 @@ class MainWindow(QMainWindow):
             f"{name} preset applied",
             f"{japanese_names.get(name, name)}プリセットを適用しました",
         )
-
         print(
             f"Preset: {name} "
             f"({target_lufs:.0f} LUFS, {limiter_ceiling:.0f} dBFS)"
         )
+
+    def apply_browser_sample_preset(self):
+        self.youtube_normalize_checkbox.setChecked(False)
+        self.normalizer_checkbox.setChecked(False)
+        self.youtube_checkbox.setChecked(True)
+        self.aac_checkbox.setChecked(False)
+        self.set_status("Browser sample Opus preview", "ブラウザサンプル用Opusプレビュー")
 
     def update_headroom_indicator(self):
         headroom_db = -audio_state.true_peak_db
