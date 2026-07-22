@@ -1103,6 +1103,29 @@ class MainWindow(QMainWindow):
         title = "候補WAVの比較" if japanese else "Candidate WAV Comparison"
         message = "\n\n".join(rows)
         if measure_opus_impact:
+            ranked_impacts = sorted(
+                (
+                    result
+                    for result in results
+                    if result.get("opus_impact") is not None
+                ),
+                key=lambda result: result["opus_impact"]["relative_lufs_db"],
+            )
+            if ranked_impacts:
+                ranking_rows = []
+                for position, result in enumerate(ranked_impacts, start=1):
+                    relative_delta = result["opus_impact"]["relative_lufs_db"]
+                    ranking_rows.append(
+                        f"{position}. {result['name']} ({relative_delta:.1f} dB)"
+                    )
+
+                winner = ranked_impacts[0]
+                message += (
+                    "\n\nOpus stability ranking (less changed first)\n"
+                    + "\n".join(ranking_rows)
+                    + "\n\nRecommended first check: "
+                    + winner["name"]
+                )
             message += (
                 "\n\nOpus Delta guide: a more negative value versus source "
                 "means less changed codec-difference energy."
