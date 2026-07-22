@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 
 from audio_state import audio_state
 from aac_exporter import export_aac_preview
-from file_analyzer import analyze_wav, compare_wavs
+from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
 from opus_exporter import (
     export_opus_delta, export_opus_preview, export_youtube_ab_previews,
 )
@@ -1030,6 +1030,17 @@ class MainWindow(QMainWindow):
         if not paths:
             return
 
+        measure_opus_impact = (
+            QMessageBox.question(
+                self,
+                "Opus Impact",
+                "Also measure Opus codec impact? This takes longer for each WAV.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            == QMessageBox.StandardButton.Yes
+        )
+
         japanese = self.current_language == "ja"
         self.set_status(
             "Analyzing candidate WAV files...",
@@ -1041,6 +1052,14 @@ class MainWindow(QMainWindow):
         for path in paths:
             try:
                 result = analyze_wav(path, self.youtube_target_lufs)
+                if measure_opus_impact:
+                    try:
+                        result["opus_impact"] = analyze_opus_impact(
+                            path,
+                            self.current_opus_bitrate(),
+                        )
+                    except (OSError, RuntimeError, ValueError) as error:
+                        result["opus_impact_error"] = str(error)
                 results.append(result)
             except (OSError, ValueError) as error:
                 errors.append(f"{path}: {error}")
@@ -1068,8 +1087,26 @@ class MainWindow(QMainWindow):
                 f"({result['youtube_percent']:.0f}%) | {readiness}"
             )
 
+            if measure_opus_impact:
+                impact = result.get("opus_impact")
+                if impact:
+                    rows[-1] += (
+                        f"\n  Opus Delta: {impact['relative_lufs_db']:.1f} dB "
+                        f"vs source | Delta LUFS: {impact['delta_lufs_i']:.1f}"
+                    )
+                else:
+                    rows[-1] += (
+                        "\n  Opus Delta: unavailable - "
+                        + result.get("opus_impact_error", "unknown error")
+                    )
+
         title = "候補WAVの比較" if japanese else "Candidate WAV Comparison"
         message = "\n\n".join(rows)
+        if measure_opus_impact:
+            message += (
+                "\n\nOpus Delta guide: a more negative value versus source "
+                "means less changed codec-difference energy."
+            )
         if errors:
             error_title = "解析できなかったファイル" if japanese else "Files not analyzed"
             message += f"\n\n{error_title}\n" + "\n".join(errors)

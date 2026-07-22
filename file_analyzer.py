@@ -1,12 +1,14 @@
 """Offline analysis for PCM WAV files exported from a DAW."""
 
 from pathlib import Path
+import tempfile
 import wave
 
 import numpy as np
 from scipy.signal import resample_poly
 
 from loudness import LoudnessMeter
+from opus_exporter import export_opus_delta
 
 
 def analyze_wav(path, target_lufs=-14.0):
@@ -84,6 +86,27 @@ def analyze_wav(path, target_lufs=-14.0):
             youtube_gain_db,
             target_lufs,
         ),
+    }
+
+
+def analyze_opus_impact(path, bitrate_kbps=128):
+    """Measure the level of the audible difference introduced by Opus."""
+    source = analyze_wav(path)
+
+    with tempfile.TemporaryDirectory(prefix="stream_audio_monitor_") as folder:
+        delta_path = Path(folder) / "opus_delta.wav"
+        export_opus_delta(
+            path,
+            delta_path,
+            bitrate_kbps=bitrate_kbps,
+            delta_gain_db=0.0,
+        )
+        delta = analyze_wav(delta_path)
+
+    return {
+        "delta_lufs_i": delta["lufs_i"],
+        "delta_peak_db": delta["peak_db"],
+        "relative_lufs_db": delta["lufs_i"] - source["lufs_i"],
     }
 
 
