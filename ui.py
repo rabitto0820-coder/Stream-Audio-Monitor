@@ -1,6 +1,7 @@
 import math
 import time
 from datetime import datetime
+from pathlib import Path
 import sounddevice as sd
 
 from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
@@ -216,6 +217,9 @@ class MainWindow(QMainWindow):
         self.analyze_candidates_button.setToolTip(
             "複数の候補WAVを一度に解析し、YouTube投稿時の変化を比較します。"
         )
+        self.analyze_candidate_folder_button.setToolTip(
+            "フォルダ内のWAVをまとめて解析します。サブフォルダは含みません。"
+        )
         self.compare_wav_button.setToolTip(
             "元のWAVと書き出したプレビューWAVの測定値を比較します。"
         )
@@ -317,6 +321,7 @@ class MainWindow(QMainWindow):
             self.broadcast_preset_button,
             self.analyze_wav_button,
             self.analyze_candidates_button,
+            self.analyze_candidate_folder_button,
             self.compare_wav_button,
             self.export_opus_button,
             self.export_delta_button,
@@ -423,6 +428,9 @@ class MainWindow(QMainWindow):
         self.stop_button.setText(texts["stop"])
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
+        self.analyze_candidate_folder_button.setText(
+            "候補フォルダを比較" if japanese else "Analyze Folder"
+        )
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
         self.export_delta_button.setText("Export Opus Delta")
@@ -509,6 +517,7 @@ class MainWindow(QMainWindow):
         self.stop_button = QPushButton("Stop")
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
+        self.analyze_candidate_folder_button = QPushButton("Analyze Folder")
         self.compare_wav_button = QPushButton("Compare WAV")
         self.export_opus_button = QPushButton("Export Opus WAV")
         self.export_delta_button = QPushButton("Export Opus Delta")
@@ -569,6 +578,7 @@ class MainWindow(QMainWindow):
         export_row = QHBoxLayout()
         export_row.addWidget(self.analyze_wav_button)
         export_row.addWidget(self.analyze_candidates_button)
+        export_row.addWidget(self.analyze_candidate_folder_button)
         export_row.addWidget(self.compare_wav_button)
         export_row.addWidget(self.export_opus_button)
         export_row.addWidget(self.export_delta_button)
@@ -636,6 +646,9 @@ class MainWindow(QMainWindow):
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.analyze_candidates_button.clicked.connect(
             self.analyze_candidate_wavs
+        )
+        self.analyze_candidate_folder_button.clicked.connect(
+            self.analyze_candidate_folder
         )
         self.compare_wav_button.clicked.connect(self.compare_wav_files)
         self.export_opus_button.clicked.connect(self.export_opus_wav)
@@ -1030,6 +1043,32 @@ class MainWindow(QMainWindow):
         if not paths:
             return
 
+        self.analyze_candidate_paths(paths)
+
+    def analyze_candidate_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            "Select candidate WAV folder",
+        )
+        if not folder:
+            return
+
+        paths = sorted(
+            str(path)
+            for path in Path(folder).iterdir()
+            if path.is_file() and path.suffix.lower() == ".wav"
+        )
+        if not paths:
+            QMessageBox.information(
+                self,
+                "Candidate Analysis",
+                "No WAV files were found in this folder.",
+            )
+            return
+
+        self.analyze_candidate_paths(paths)
+
+    def analyze_candidate_paths(self, paths):
         measure_opus_impact = (
             QMessageBox.question(
                 self,
