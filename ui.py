@@ -1,5 +1,6 @@
 import math
 import time
+from datetime import datetime
 import sounddevice as sd
 
 from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
@@ -405,6 +406,8 @@ class MainWindow(QMainWindow):
         self.export_codec_pack_button.setText(texts["pack_export"])
         self.youtube_volume_export_checkbox.setText(texts["youtube_volume"])
         self.youtube_checkbox.setText(texts["opus_preview"])
+        if not japanese:
+            self.youtube_checkbox.setText("Opus Preview (YouTube)")
         self.aac_checkbox.setText(texts["aac_preview"])
         self.mono_checkbox.setText(texts["mono"])
         self.bass_mono_checkbox.setText(texts["bass_mono"])
@@ -491,7 +494,7 @@ class MainWindow(QMainWindow):
         )
         self.youtube_volume_export_checkbox.setChecked(True)
 
-        self.youtube_checkbox = QCheckBox("YouTube Opus Preview")
+        self.youtube_checkbox = QCheckBox("Opus Preview (YouTube)")
         self.aac_checkbox = QCheckBox("AAC Preview")
         self.mono_checkbox = QCheckBox("Mono Preview")
         self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
@@ -772,12 +775,27 @@ class MainWindow(QMainWindow):
 
         if started:
             self.set_status("Running", "動作中")
+            self.set_audio_running_state(True)
         else:
             self.set_status("Audio error", "音声エラー")
+            self.set_audio_running_state(False)
 
     def stop_audio(self):
         self.stop_stream()
         self.set_status("Stopped", "停止しました")
+        self.set_audio_running_state(False)
+
+    def set_audio_running_state(self, running):
+        if running:
+            self.start_button.setStyleSheet(
+                "background: #1f7a45; color: white; font-weight: bold;"
+            )
+            self.stop_button.setStyleSheet("")
+        else:
+            self.start_button.setStyleSheet("")
+            self.stop_button.setStyleSheet(
+                "background: #8b1e1e; color: white; font-weight: bold;"
+            )
 
     def set_status(self, english, japanese):
         if self.current_language == "ja":
@@ -1030,7 +1048,13 @@ class MainWindow(QMainWindow):
 
         try:
             with open(path, "w", encoding="utf-8") as report_file:
-                report_file.write(self.last_candidate_report)
+                report_file.write(
+                    "Stream Audio Monitor - Candidate WAV Report\n"
+                    f"Created: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+                    f"YouTube Reference: {self.youtube_target_lufs:.1f} LUFS\n"
+                    "=" * 60 + "\n\n"
+                    + self.last_candidate_report
+                )
         except OSError as error:
             QMessageBox.warning(self, "Candidate Report", str(error))
             return
