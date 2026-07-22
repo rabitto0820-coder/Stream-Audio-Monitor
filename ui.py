@@ -2045,6 +2045,7 @@ class MainWindow(QMainWindow):
         self.codec_difference.set_difference(
             audio_state.codec_difference,
             audio_state.codec_difference_active,
+            audio_state.sample_rate,
         )
 
         clip_label = "クリップ" if self.current_language == "ja" else "CLIP"

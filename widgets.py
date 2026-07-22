@@ -428,21 +428,35 @@ class CodecDifferenceWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.difference = np.zeros(512, dtype=np.float32)
+        self.average = np.zeros(512, dtype=np.float32)
         self.display = np.zeros(512, dtype=np.float32)
+        self.peak_hold = np.zeros(512, dtype=np.float32)
         self.active = False
-        self.setMinimumHeight(170)
+        self.sample_rate = 48000
+        self.setMinimumHeight(250)
 
-    def set_difference(self, difference, active):
+    def set_difference(self, difference, active, sample_rate=48000):
         if len(difference) != 512:
             return
 
         self.active = bool(active)
+        self.sample_rate = int(sample_rate)
         if not self.active:
             self.difference.fill(0.0)
+            self.average.fill(0.0)
             self.display.fill(0.0)
+            self.peak_hold.fill(0.0)
         else:
             self.difference = difference.copy()
-            self.display = self.display * 0.78 + self.difference * 0.22
+            # About 0.7 seconds of averaging at the 60 fps GUI update rate.
+            self.average = self.average * 0.97 + self.difference * 0.03
+            # Fall slowly so that brief, meaningful changes remain visible.
+            self.display = np.maximum(
+                self.average,
+                self.display - 0.009,
+            )
+            self.peak_hold = np.maximum(self.peak_hold, self.display)
+            self.peak_hold = np.maximum(0.0, self.peak_hold - 0.0025)
         self.update()
 
     def paintEvent(self, event):
@@ -451,18 +465,32 @@ class CodecDifferenceWidget(QWidget):
         painter.fillRect(0, 0, width, height, QColor("#181818"))
 
         painter.setPen(QColor("#f0d060"))
-        painter.drawText(10, 20, "Codec Difference Spectrum")
+        title = "Codec Difference Spectrum"
+        if self.active and float(np.max(self.display)) >= 0.03:
+            index = int(np.argmax(self.display))
+            frequency_hz = index * self.sample_rate / 1024.0
+            if frequency_hz >= 1000.0:
+                frequency_text = f"{frequency_hz / 1000.0:.1f} kHz"
+            else:
+                frequency_text = f"{frequency_hz:.0f} Hz"
+            title += f"  |  strongest: {frequency_text}"
+        painter.drawText(10, 20, title)
         painter.setPen(QColor("#a0a0a0"))
-        note = "Opus/AAC OFF - no codec change to display" if not self.active else "Brighter bars = larger codec change"
+        note = "Opus/AAC OFF - no codec change to display" if not self.active else "Smoothed codec change by frequency"
         painter.drawText(10, 40, note)
 
-        bars = 64
         usable_height = height - 55
-        for index in range(bars):
-            spectrum_index = int(index * len(self.display) / bars)
-            value = float(np.clip(self.display[spectrum_index], 0.0, 1.0))
+        # Match Spectrum Analyzer's 64-bar layout. Each bar samples the
+        # difference at the same relative frequency position.
+        bars = 64
+        for bar in range(bars):
+            index = min(
+                len(self.display) - 1,
+                int(bar * len(self.display) / bars),
+            )
+            value = float(np.clip(self.display[index], 0.0, 1.0))
             bar_height = int(value * usable_height)
-            x = int(index * width / bars)
+            x = int(bar * width / bars)
             bar_width = max(3, width // bars - 3)
 
             color = QColor("#00c85a")
@@ -477,4 +505,15 @@ class CodecDifferenceWidget(QWidget):
                 bar_width,
                 bar_height,
                 color
+            )
+
+            hold_y = height - int(
+                np.clip(self.peak_hold[index], 0.0, 1.0) * usable_height
+            ) - 10
+            painter.fillRect(
+                x,
+                hold_y,
+                bar_width,
+                2,
+                QColor("#f4f4f4"),
             )
