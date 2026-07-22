@@ -468,12 +468,13 @@ class CodecDifferenceWidget(QWidget):
         title = "Codec Difference Spectrum"
         if self.active and float(np.max(self.display)) >= 0.03:
             index = int(np.argmax(self.display))
+            strength = float(self.display[index]) * 16.5 + 1.5
             frequency_hz = index * self.sample_rate / 1024.0
             if frequency_hz >= 1000.0:
                 frequency_text = f"{frequency_hz / 1000.0:.1f} kHz"
             else:
                 frequency_text = f"{frequency_hz:.0f} Hz"
-            title += f"  |  strongest: {frequency_text}"
+            title += f"  |  strongest: {frequency_text} (~{strength:.1f} dB)"
         painter.drawText(10, 20, title)
         painter.setPen(QColor("#a0a0a0"))
         note = "Opus/AAC OFF - no codec change to display" if not self.active else "Smoothed codec change by frequency"
