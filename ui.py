@@ -227,7 +227,7 @@ class MainWindow(QMainWindow):
             "YouTube想定のOpus版とAAC版をまとめて書き出します。"
         )
         self.youtube_checkbox.setToolTip(
-            "再生中の音をFFmpegのOpusで往復圧縮して聴きます。"
+            "ブラウザのサンプルにはON。YouTubeの参考曲は既に圧縮済みなので通常はOFFにします。"
         )
         self.aac_checkbox.setToolTip(
             "再生中の音をAAC 128 kbps相当で聴きます。Opus Previewとは同時に使えません。"
