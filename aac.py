@@ -32,6 +32,9 @@ class AACPreview:
         self._future = None
         self._input_buffer = np.empty((0, self.channels), dtype=np.float32)
         self._output_buffer = np.empty((0, self.channels), dtype=np.float32)
+        self._reference_buffer = np.empty((0, self.channels), dtype=np.float32)
+        self._future_reference = None
+        self.last_reference = np.zeros((0, self.channels), dtype=np.float32)
         # AAC uses fixed 1024-sample frames. Processing complete groups of
         # frames avoids clicks at the boundary between worker jobs.
         requested_frames = round(self.sample_rate * 0.50)
@@ -68,17 +71,31 @@ class AACPreview:
             chunk = self._input_buffer[:self._chunk_size].copy()
             self._input_buffer = self._input_buffer[self._chunk_size:]
             self._future = self._executor.submit(self._aac_round_trip, chunk)
+            self._future_reference = chunk
 
         frames = len(input_data)
         if len(self._output_buffer) >= frames:
             output = self._output_buffer[:frames]
+            reference = self._reference_buffer[:frames]
             self._output_buffer = self._output_buffer[frames:]
+            self._reference_buffer = self._reference_buffer[frames:]
+            self.last_reference = reference.astype(data.dtype, copy=False)
             return output.astype(data.dtype, copy=False)
 
         available = self._output_buffer
+        available_reference = self._reference_buffer
         self._output_buffer = np.empty((0, self.channels), dtype=np.float32)
+        self._reference_buffer = np.empty((0, self.channels), dtype=np.float32)
         silence = np.zeros((frames - len(available), self.channels), dtype=np.float32)
         output = np.vstack((available, silence))
+        reference_silence = np.zeros(
+            (frames - len(available_reference), self.channels),
+            dtype=np.float32,
+        )
+        self.last_reference = np.vstack((
+            available_reference,
+            reference_silence,
+        )).astype(data.dtype, copy=False)
         return output.astype(data.dtype, copy=False)
 
     def _collect_completed_chunk(self):
@@ -93,9 +110,15 @@ class AACPreview:
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             print(f"AAC Preview fallback: {error}")
             self.real_codec_available = False
+            self._future_reference = None
             return
 
         self._output_buffer = np.vstack((self._output_buffer, decoded))
+        self._reference_buffer = np.vstack((
+            self._reference_buffer,
+            self._future_reference,
+        ))
+        self._future_reference = None
 
     def _aac_round_trip(self, data):
         raw_audio = np.ascontiguousarray(data, dtype=np.float32).tobytes()
@@ -158,6 +181,7 @@ class AACPreview:
         return decoded.reshape((-1, self.channels))
 
     def _process_fallback(self, data):
+        self.last_reference = data.copy()
         filtered, self._state = sosfilt(
             self._sos,
             data,

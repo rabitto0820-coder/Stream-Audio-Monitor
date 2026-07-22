@@ -23,6 +23,7 @@ bass_mono_preview = False
 phone_speaker_preview = False
 monitor_muted = False
 bypass_effects = False
+codec_delta_monitor = False
 
 sample_rate = 48000
 
@@ -143,6 +144,12 @@ def set_aac_simulation(enabled):
         opus_simulation = False
 
 
+def set_codec_delta_monitor(enabled):
+    global codec_delta_monitor
+
+    codec_delta_monitor = bool(enabled)
+
+
 def set_mono_preview(enabled):
     global mono_preview
 
@@ -242,7 +249,7 @@ def callback(indata, outdata, frames, time_info, status):
         print(status)
 
     data = indata.copy()
-    codec_reference = data.copy()
+    codec_reference = np.zeros_like(data)
 
     audio_state.input_peak_db = _decibels(
         float(np.max(np.abs(data)))
@@ -253,6 +260,7 @@ def callback(indata, outdata, frames, time_info, status):
 
     elif opus_simulation:
         data = opus_filter(data)
+        codec_reference = youtube_preview.last_reference
         audio_state.codec_preview_mode = (
             "REAL OPUS"
             if youtube_preview.real_codec_available
@@ -261,6 +269,7 @@ def callback(indata, outdata, frames, time_info, status):
 
     elif aac_simulation:
         data = aac_preview.process(data)
+        codec_reference = aac_preview.last_reference
         audio_state.codec_preview_mode = (
             "REAL AAC"
             if aac_preview.real_codec_available
@@ -270,14 +279,16 @@ def callback(indata, outdata, frames, time_info, status):
     else:
         audio_state.codec_preview_mode = "OFF"
 
-    codec_active = opus_simulation or aac_simulation
+    codec_active = (opus_simulation or aac_simulation) and not bypass_effects
     audio_state.codec_difference_active = codec_active
 
     if codec_active:
         reference_mono = np.mean(codec_reference, axis=1)
         codec_mono = np.mean(data, axis=1)
-        reference_fft = np.abs(np.fft.rfft(reference_mono))
-        codec_fft = np.abs(np.fft.rfft(codec_mono))
+        # A fixed FFT size gives the graph the same full-width frequency
+        # resolution regardless of the selected audio buffer size.
+        reference_fft = np.abs(np.fft.rfft(reference_mono, n=1024))
+        codec_fft = np.abs(np.fft.rfft(codec_mono, n=1024))
         difference_db = np.abs(
             20.0 * np.log10((codec_fft + 1e-8) / (reference_fft + 1e-8))
         )
@@ -288,6 +299,12 @@ def callback(indata, outdata, frames, time_info, status):
     else:
         audio_state.codec_difference.fill(0.0)
 
+    delta_mode_active = codec_delta_monitor and codec_active
+
+    if delta_mode_active:
+        # Audition only the signal changed by the codec.
+        data = (codec_reference - data) * 2.0
+
     (
         audio_state.lufs_m,
         audio_state.lufs_s,
@@ -295,7 +312,7 @@ def callback(indata, outdata, frames, time_info, status):
     ) = loudness_meter.process(data)
     audio_state.lufs_measurement_seconds += frames / sample_rate
 
-    if bypass_effects:
+    if bypass_effects or delta_mode_active:
         audio_state.youtube_gain_db = 0.0
         audio_state.normalizer_gain_db = 0.0
     else:
@@ -313,6 +330,10 @@ def callback(indata, outdata, frames, time_info, status):
         if mono_preview and data.shape[1] >= 2:
             mono = np.mean(data, axis=1, keepdims=True)
             data = np.repeat(mono, data.shape[1], axis=1)
+
+    if delta_mode_active:
+        # Delta monitoring can be unexpectedly loud on transient material.
+        data = np.clip(data, -0.99, 0.99)
 
     if monitor_muted:
         outdata.fill(0.0)
@@ -403,7 +424,7 @@ def callback(indata, outdata, frames, time_info, status):
     )
 
     fft = np.abs(
-        np.fft.rfft(mono)
+        np.fft.rfft(mono, n=1024)
     )
 
     if np.max(fft) > 0:

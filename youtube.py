@@ -55,6 +55,16 @@ class YouTubeOpusPreview:
             dtype=np.float32
         )
 
+        self._reference_buffer = np.empty(
+            (0, self.channels),
+            dtype=np.float32
+        )
+        self._future_reference = None
+        self.last_reference = np.zeros(
+            (0, self.channels),
+            dtype=np.float32
+        )
+
         self._chunk_size = max(
             1,
             round(self.sample_rate * 0.25)
@@ -118,15 +128,27 @@ class YouTubeOpusPreview:
                 self._opus_round_trip,
                 chunk,
             )
+            self._future_reference = chunk
 
         frames = len(input_data)
 
         if len(self._output_buffer) >= frames:
             output = self._output_buffer[:frames]
 
+            reference = self._reference_buffer[:frames]
+
             self._output_buffer = self._output_buffer[
                 frames:
             ]
+
+            self._reference_buffer = self._reference_buffer[
+                frames:
+            ]
+
+            self.last_reference = reference.astype(
+                data.dtype,
+                copy=False,
+            )
 
             return output.astype(
                 data.dtype,
@@ -136,7 +158,14 @@ class YouTubeOpusPreview:
         # Maintain codec delay instead of mixing dry and compressed audio.
         available = self._output_buffer
 
+        available_reference = self._reference_buffer
+
         self._output_buffer = np.empty(
+            (0, self.channels),
+            dtype=np.float32
+        )
+
+        self._reference_buffer = np.empty(
             (0, self.channels),
             dtype=np.float32
         )
@@ -150,6 +179,15 @@ class YouTubeOpusPreview:
             available,
             silence
         ))
+
+        reference_silence = np.zeros(
+            (frames - len(available_reference), self.channels),
+            dtype=np.float32,
+        )
+        self.last_reference = np.vstack((
+            available_reference,
+            reference_silence,
+        )).astype(data.dtype, copy=False)
 
         return output.astype(
             data.dtype,
@@ -173,12 +211,18 @@ class YouTubeOpusPreview:
         ) as error:
             print(f"YouTube Opus Preview fallback: {error}")
             self.real_codec_available = False
+            self._future_reference = None
             return
 
         self._output_buffer = np.vstack((
             self._output_buffer,
             decoded
         ))
+        self._reference_buffer = np.vstack((
+            self._reference_buffer,
+            self._future_reference,
+        ))
+        self._future_reference = None
 
     def _opus_round_trip(self, data):
         raw_audio = np.ascontiguousarray(
@@ -253,6 +297,7 @@ class YouTubeOpusPreview:
         )
 
     def _process_fallback(self, data):
+        self.last_reference = data.copy()
         if self._sos is None:
             return data.copy()
 

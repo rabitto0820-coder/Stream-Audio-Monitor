@@ -237,6 +237,9 @@ class MainWindow(QMainWindow):
         self.aac_checkbox.setToolTip(
             "再生中の音をAAC 128 kbps相当で聴きます。Opus Previewとは同時に使えません。"
         )
+        self.codec_delta_checkbox.setToolTip(
+            "Hear only the sound changed by Opus or AAC. Use with a codec preview."
+        )
         self.mono_checkbox.setToolTip(
             "左右を中央にまとめ、モノラル再生時の聴こえ方を確認します。"
         )
@@ -310,6 +313,7 @@ class MainWindow(QMainWindow):
             self.youtube_volume_export_checkbox,
             self.youtube_checkbox,
             self.aac_checkbox,
+            self.codec_delta_checkbox,
             self.mono_checkbox,
             self.bass_mono_checkbox,
             self.phone_speaker_checkbox,
@@ -501,6 +505,7 @@ class MainWindow(QMainWindow):
 
         self.youtube_checkbox = QCheckBox("Opus Preview (YouTube)")
         self.aac_checkbox = QCheckBox("AAC Preview")
+        self.codec_delta_checkbox = QCheckBox("Codec Delta Monitor")
         self.mono_checkbox = QCheckBox("Mono Preview")
         self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
         self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
@@ -553,6 +558,7 @@ class MainWindow(QMainWindow):
         preview_row = QHBoxLayout()
         preview_row.addWidget(self.youtube_checkbox)
         preview_row.addWidget(self.aac_checkbox)
+        preview_row.addWidget(self.codec_delta_checkbox)
         preview_row.addWidget(self.mono_checkbox)
         preview_row.addWidget(self.bass_mono_checkbox)
         preview_row.addWidget(self.phone_speaker_checkbox)
@@ -617,6 +623,7 @@ class MainWindow(QMainWindow):
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
+        self.codec_delta_checkbox.toggled.connect(self.toggle_codec_delta)
         self.mono_checkbox.toggled.connect(self.toggle_mono_preview)
         self.bass_mono_checkbox.toggled.connect(
             self.toggle_bass_mono_preview
@@ -870,6 +877,9 @@ class MainWindow(QMainWindow):
         # off automatically; only one real-time codec preview can be active.
         self.aac_checkbox.setChecked(saved.get("aac_preview", False))
         self.youtube_checkbox.setChecked(saved.get("youtube_preview", False))
+        self.codec_delta_checkbox.setChecked(
+            saved.get("codec_delta_monitor", False)
+        )
         self.apply_language()
 
         geometry = saved.get("window_geometry")
@@ -897,6 +907,7 @@ class MainWindow(QMainWindow):
             "apply_youtube_volume": self.youtube_volume_export_checkbox.isChecked(),
             "youtube_preview": self.youtube_checkbox.isChecked(),
             "aac_preview": self.aac_checkbox.isChecked(),
+            "codec_delta_monitor": self.codec_delta_checkbox.isChecked(),
             "mono_preview": self.mono_checkbox.isChecked(),
             "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
@@ -1409,6 +1420,19 @@ class MainWindow(QMainWindow):
         else:
             print("AAC Preview: OFF")
             self.set_status("Running", "動作中")
+
+    def toggle_codec_delta(self, enabled):
+        import audio
+
+        audio.set_codec_delta_monitor(enabled)
+        state = "ON" if enabled else "OFF"
+        print(f"Codec Delta Monitor: {state}")
+
+        if enabled:
+            self.set_status(
+                "Codec Delta Monitor: changed sound only",
+                "Codec Delta Monitor: changed sound only",
+            )
 
     def toggle_mono_preview(self, enabled):
         import audio
