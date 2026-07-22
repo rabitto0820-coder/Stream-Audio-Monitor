@@ -420,3 +420,61 @@ class SpectrumWidget(QWidget):
                 bar_height,
                 color
             )
+
+
+class CodecDifferenceWidget(QWidget):
+    """Shows only the frequency ranges changed by the active codec preview."""
+
+    def __init__(self):
+        super().__init__()
+        self.difference = np.zeros(512, dtype=np.float32)
+        self.display = np.zeros(512, dtype=np.float32)
+        self.active = False
+        self.setMinimumHeight(170)
+
+    def set_difference(self, difference, active):
+        if len(difference) != 512:
+            return
+
+        self.active = bool(active)
+        if not self.active:
+            self.difference.fill(0.0)
+            self.display.fill(0.0)
+        else:
+            self.difference = difference.copy()
+            self.display = self.display * 0.78 + self.difference * 0.22
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        width, height = self.width(), self.height()
+        painter.fillRect(0, 0, width, height, QColor("#181818"))
+
+        painter.setPen(QColor("#f0d060"))
+        painter.drawText(10, 20, "Codec Difference Spectrum")
+        painter.setPen(QColor("#a0a0a0"))
+        note = "Opus/AAC OFF - no codec change to display" if not self.active else "Brighter bars = larger codec change"
+        painter.drawText(10, 40, note)
+
+        bars = 64
+        usable_height = height - 55
+        for index in range(bars):
+            spectrum_index = int(index * len(self.display) / bars)
+            value = float(np.clip(self.display[spectrum_index], 0.0, 1.0))
+            bar_height = int(value * usable_height)
+            x = int(index * width / bars)
+            bar_width = max(3, width // bars - 3)
+
+            color = QColor("#00c85a")
+            if value > 0.66:
+                color = QColor("#ff4d4d")
+            elif value > 0.33:
+                color = QColor("#ffd633")
+
+            painter.fillRect(
+                x,
+                height - bar_height - 10,
+                bar_width,
+                bar_height,
+                color
+            )
