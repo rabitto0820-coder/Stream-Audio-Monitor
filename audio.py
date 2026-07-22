@@ -116,6 +116,8 @@ def configure_audio(new_sample_rate, channels=2):
     audio_state.lufs_i = -70.0
     audio_state.lufs_measurement_seconds = 0.0
     audio_state.codec_preview_mode = "OFF"
+    audio_state.codec_difference.fill(0.0)
+    audio_state.codec_difference_active = False
 
     reset_clip_counter()
 
@@ -240,6 +242,7 @@ def callback(indata, outdata, frames, time_info, status):
         print(status)
 
     data = indata.copy()
+    codec_reference = data.copy()
 
     audio_state.input_peak_db = _decibels(
         float(np.max(np.abs(data)))
@@ -266,6 +269,24 @@ def callback(indata, outdata, frames, time_info, status):
 
     else:
         audio_state.codec_preview_mode = "OFF"
+
+    codec_active = opus_simulation or aac_simulation
+    audio_state.codec_difference_active = codec_active
+
+    if codec_active:
+        reference_mono = np.mean(codec_reference, axis=1)
+        codec_mono = np.mean(data, axis=1)
+        reference_fft = np.abs(np.fft.rfft(reference_mono))
+        codec_fft = np.abs(np.fft.rfft(codec_mono))
+        difference_db = np.abs(
+            20.0 * np.log10((codec_fft + 1e-8) / (reference_fft + 1e-8))
+        )
+        # 18 dB or more is displayed at full height.
+        difference = np.clip(difference_db / 18.0, 0.0, 1.0)
+        audio_state.codec_difference[:] = 0.0
+        audio_state.codec_difference[:min(512, len(difference))] = difference[:512]
+    else:
+        audio_state.codec_difference.fill(0.0)
 
     (
         audio_state.lufs_m,

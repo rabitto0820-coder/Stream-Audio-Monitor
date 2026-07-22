@@ -19,7 +19,7 @@ from settings import load_settings, save_settings
 from themes import apply_theme, theme_names
 from widgets import (
     AudioMeter, CorrelationWidget, PhaseScopeWidget,
-    SpectrumWidget, WaveformWidget,
+    CodecDifferenceWidget, SpectrumWidget, WaveformWidget,
 )
 
 
@@ -686,6 +686,7 @@ class MainWindow(QMainWindow):
         self.phase_scope = PhaseScopeWidget()
         self.waveform = WaveformWidget()
         self.spectrum = SpectrumWidget()
+        self.codec_difference = CodecDifferenceWidget()
 
         for widget in (
             self.peak_meter,
@@ -698,6 +699,7 @@ class MainWindow(QMainWindow):
             self.phase_scope,
             self.waveform,
             self.spectrum,
+            self.codec_difference,
         ):
             meter_layout.addWidget(widget)
 
@@ -1893,6 +1895,11 @@ class MainWindow(QMainWindow):
 
         self.spectrum.set_spectrum(
             audio_state.spectrum
+        )
+
+        self.codec_difference.set_difference(
+            audio_state.codec_difference,
+            audio_state.codec_difference_active,
         )
 
         clip_label = "クリップ" if self.current_language == "ja" else "CLIP"

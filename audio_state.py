@@ -32,6 +32,13 @@ class AudioState:
             dtype=np.float32
         )
 
+        # Codec Difference Spectrum: 0.0 means no audible spectral change.
+        self.codec_difference = np.zeros(
+            512,
+            dtype=np.float32
+        )
+        self.codec_difference_active = False
+
         self.sample_rate = 48000
 
         self.last_audio = np.zeros(
