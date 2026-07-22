@@ -249,6 +249,9 @@ class MainWindow(QMainWindow):
         self.codec_focus_button.setToolTip(
             "Hide general meters and focus on the spectrum and codec difference."
         )
+        self.reset_codec_difference_button.setToolTip(
+            "Clear the held codec-difference graph before comparing a new sound."
+        )
         self.mono_checkbox.setToolTip(
             "左右を中央にまとめ、モノラル再生時の聴こえ方を確認します。"
         )
@@ -325,6 +328,7 @@ class MainWindow(QMainWindow):
             self.aac_checkbox,
             self.codec_delta_checkbox,
             self.codec_focus_button,
+            self.reset_codec_difference_button,
             self.mono_checkbox,
             self.bass_mono_checkbox,
             self.phone_speaker_checkbox,
@@ -521,6 +525,10 @@ class MainWindow(QMainWindow):
         self.codec_delta_checkbox = QCheckBox("Codec Delta Monitor")
         self.codec_focus_button = QPushButton("Codec Focus: OFF")
         self.codec_focus_button.clicked.connect(self.toggle_codec_focus)
+        self.reset_codec_difference_button = QPushButton("Reset Codec Diff")
+        self.reset_codec_difference_button.clicked.connect(
+            self.reset_codec_difference
+        )
         self.mono_checkbox = QCheckBox("Mono Preview")
         self.bass_mono_checkbox = QCheckBox("Bass Mono (150 Hz)")
         self.phone_speaker_checkbox = QCheckBox("Phone Speaker Preview")
@@ -588,6 +596,7 @@ class MainWindow(QMainWindow):
         monitor_row.addWidget(self.mute_monitor_checkbox)
         monitor_row.addWidget(self.bypass_checkbox)
         monitor_row.addWidget(self.codec_focus_button)
+        monitor_row.addWidget(self.reset_codec_difference_button)
         self.monitor_note_label = QLabel(
             "Mute keeps meters running. Bypass plays the raw input."
         )
@@ -1533,6 +1542,10 @@ class MainWindow(QMainWindow):
     def toggle_codec_focus(self):
         self.set_codec_focus(not self.codec_focus_enabled)
         self.save_current_settings()
+
+    def reset_codec_difference(self):
+        self.codec_difference.reset_history()
+        self.set_status("Codec difference reset", "Codec difference reset")
 
     def set_codec_focus(self, enabled):
         self.codec_focus_enabled = bool(enabled)

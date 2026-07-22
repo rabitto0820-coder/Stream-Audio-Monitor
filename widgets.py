@@ -459,6 +459,13 @@ class CodecDifferenceWidget(QWidget):
             self.peak_hold = np.maximum(0.0, self.peak_hold - 0.0025)
         self.update()
 
+    def reset_history(self):
+        """Clear the smoothed and held codec-difference display."""
+        self.average.fill(0.0)
+        self.display.fill(0.0)
+        self.peak_hold.fill(0.0)
+        self.update()
+
     def paintEvent(self, event):
         painter = QPainter(self)
         width, height = self.width(), self.height()
