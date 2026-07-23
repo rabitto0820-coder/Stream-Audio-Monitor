@@ -1293,9 +1293,10 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "WAV Analysis", message)
 
     def analyze_candidate_wavs(self):
+        japanese = self.current_language == "ja"
         paths, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select candidate WAV files",
+            "候補WAVを選択" if japanese else "Select candidate WAV files",
             "",
             "WAV files (*.wav)",
         )
@@ -1306,9 +1307,10 @@ class MainWindow(QMainWindow):
         self.analyze_candidate_paths(paths)
 
     def analyze_candidate_folder(self):
+        japanese = self.current_language == "ja"
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Select candidate WAV folder",
+            "候補WAVフォルダを選択" if japanese else "Select candidate WAV folder",
         )
         if not folder:
             return
@@ -1321,19 +1323,23 @@ class MainWindow(QMainWindow):
         if not paths:
             QMessageBox.information(
                 self,
-                "Candidate Analysis",
-                "No WAV files were found in this folder.",
+                "候補WAVの比較" if japanese else "Candidate Analysis",
+                "このフォルダにはWAVファイルがありません。"
+                if japanese else "No WAV files were found in this folder.",
             )
             return
 
         self.analyze_candidate_paths(paths)
 
     def analyze_candidate_paths(self, paths):
+        japanese = self.current_language == "ja"
         measure_opus_impact = (
             QMessageBox.question(
                 self,
-                "Opus Impact",
-                "Also measure Opus codec impact? This takes longer for each WAV.",
+                "Opus影響測定" if japanese else "Opus Impact",
+                "Opus圧縮による変化も測定しますか？\n"
+                "WAVごとに時間が追加でかかります。"
+                if japanese else "Also measure Opus codec impact? This takes longer for each WAV.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -1342,10 +1348,13 @@ class MainWindow(QMainWindow):
         if measure_opus_impact:
             error = opus_support_error()
             if error:
-                QMessageBox.warning(self, "Opus Impact", error)
+                QMessageBox.warning(
+                    self,
+                    "Opus影響測定" if japanese else "Opus Impact",
+                    error,
+                )
                 return
 
-        japanese = self.current_language == "ja"
         self.set_status(
             "Analyzing candidate WAV files...",
             "候補WAVを解析中...",
@@ -1353,13 +1362,15 @@ class MainWindow(QMainWindow):
         results = []
         errors = []
         progress = QProgressDialog(
-            "Analyzing candidate WAV files...",
-            "Cancel",
+            "候補WAVを解析中..." if japanese else "Analyzing candidate WAV files...",
+            "中止" if japanese else "Cancel",
             0,
             len(paths),
             self,
         )
-        progress.setWindowTitle("Candidate Analysis")
+        progress.setWindowTitle(
+            "候補WAVの比較" if japanese else "Candidate Analysis"
+        )
         progress.setWindowModality(Qt.WindowModality.WindowModal)
         progress.setMinimumDuration(0)
         progress.setValue(0)
@@ -1371,7 +1382,8 @@ class MainWindow(QMainWindow):
                 break
 
             progress.setLabelText(
-                f"Analyzing {index}/{len(paths)}\n{Path(path).name}"
+                f"{index}/{len(paths)} を解析中\n{Path(path).name}"
+                if japanese else f"Analyzing {index}/{len(paths)}\n{Path(path).name}"
             )
             try:
                 result = analyze_wav(path, self.youtube_target_lufs)
@@ -1394,12 +1406,17 @@ class MainWindow(QMainWindow):
             self.set_status("Candidate analysis error", "候補WAVの解析エラー")
             QMessageBox.warning(
                 self,
-                "Candidate Analysis",
-                "No WAV files could be analyzed.",
+                "候補WAVの比較" if japanese else "Candidate Analysis",
+                "解析できるWAVファイルがありませんでした。"
+                if japanese else "No WAV files could be analyzed.",
             )
             return
 
         rows = []
+        mono_label = "モノラル確認" if japanese else "Mono Check"
+        youtube_label = "YouTube想定" if japanese else "YouTube"
+        opus_delta_label = "Opus変化" if japanese else "Opus Delta"
+        strongest_label = "高域で最も変化" if japanese else "Strongest high-frequency delta"
         for result in results:
             readiness = self.format_offline_youtube_readiness(result)
             stereo_check = self.format_stereo_check(result)
@@ -1408,8 +1425,8 @@ class MainWindow(QMainWindow):
                 f"  LUFS-I: {result['lufs_i']:.1f} | "
                 f"True Peak: {result['true_peak_db']:.1f} dBTP | "
                 f"Correlation: {result['stereo_correlation']:+.2f}\n"
-                f"  Mono Check: {stereo_check}\n"
-                f"  YouTube: {result['youtube_gain_db']:+.1f} dB "
+                f"  {mono_label}: {stereo_check}\n"
+                f"  {youtube_label}: {result['youtube_gain_db']:+.1f} dB "
                 f"({result['youtube_percent']:.0f}%) | {readiness}"
             )
 
@@ -1417,29 +1434,32 @@ class MainWindow(QMainWindow):
                 impact = result.get("opus_impact")
                 if impact:
                     rows[-1] += (
-                        f"\n  Opus Delta: {impact['relative_lufs_db']:.1f} dB "
+                        f"\n  {opus_delta_label}: {impact['relative_lufs_db']:.1f} dB "
                         f"vs source | Delta LUFS: {impact['delta_lufs_i']:.1f}\n"
-                        f"  Strongest high-frequency delta: "
+                        f"  {strongest_label}: "
                         f"{self.format_opus_delta_band(impact)}"
                     )
                 else:
                     rows[-1] += (
-                        "\n  Opus Delta: unavailable - "
+                        f"\n  {opus_delta_label}: "
+                        + ("利用不可 - " if japanese else "unavailable - ")
                         + result.get("opus_impact_error", "unknown error")
                     )
 
         title = "候補WAVの比較" if japanese else "Candidate WAV Comparison"
         conditions = [
             "測定条件" if japanese else "Analysis settings",
-            f"Files analyzed: {len(results)}",
-            f"YouTube reference: {self.youtube_target_lufs:.1f} LUFS",
+            f"解析ファイル数: {len(results)}" if japanese else f"Files analyzed: {len(results)}",
+            f"YouTube基準: {self.youtube_target_lufs:.1f} LUFS"
+            if japanese else f"YouTube reference: {self.youtube_target_lufs:.1f} LUFS",
         ]
         if measure_opus_impact:
             conditions.append(
-                f"Opus impact: {self.current_opus_bitrate()} kbps"
+                f"Opus影響測定: {self.current_opus_bitrate()} kbps"
+                if japanese else f"Opus impact: {self.current_opus_bitrate()} kbps"
             )
         else:
-            conditions.append("Opus impact: skipped")
+            conditions.append("Opus影響測定: 実行しない" if japanese else "Opus impact: skipped")
 
         message = "\n".join(conditions) + "\n\n" + "\n\n".join(rows)
         if measure_opus_impact:
@@ -1460,23 +1480,41 @@ class MainWindow(QMainWindow):
                     )
 
                 winner = ranked_impacts[0]
+                if japanese:
+                    message += (
+                        "\n\nOpus安定性順位（変化が少ない順）\n"
+                        + "\n".join(ranking_rows)
+                        + "\n\n最初に確認する候補: "
+                        + winner["name"]
+                    )
+                else:
+                    message += (
+                        "\n\nOpus stability ranking (less changed first)\n"
+                        + "\n".join(ranking_rows)
+                        + "\n\nRecommended first check: "
+                        + winner["name"]
+                    )
+            if japanese:
                 message += (
-                    "\n\nOpus stability ranking (less changed first)\n"
-                    + "\n".join(ranking_rows)
-                    + "\n\nRecommended first check: "
-                    + winner["name"]
+                    "\n\nOpus変化の見方: 元音に対する数値がよりマイナスなら、"
+                    "コーデックによる変化エネルギーが少ない目安です。\n"
+                    "高域で最も変化は、4-8 kHz と 8-16 kHz のどちらで"
+                    "相対的な変化が大きいかを示します。"
                 )
-            message += (
-                "\n\nOpus Delta guide: a more negative value versus source "
-                "means less changed codec-difference energy.\n"
-                "The strongest high-frequency delta identifies whether 4-8 kHz "
-                "or 8-16 kHz changed more relative to the source."
-            )
+            else:
+                message += (
+                    "\n\nOpus Delta guide: a more negative value versus source "
+                    "means less changed codec-difference energy.\n"
+                    "The strongest high-frequency delta identifies whether 4-8 kHz "
+                    "or 8-16 kHz changed more relative to the source."
+                )
         if errors:
             error_title = "解析できなかったファイル" if japanese else "Files not analyzed"
             message += f"\n\n{error_title}\n" + "\n".join(errors)
         if cancelled:
             message += (
+                f"\n\n解析を中止しました: {len(paths)} 個中 {len(results)} 個を表示しています。"
+                if japanese else
                 f"\n\nAnalysis cancelled: showing {len(results)} of {len(paths)} files."
             )
 
@@ -1490,6 +1528,7 @@ class MainWindow(QMainWindow):
 
     def show_candidate_report(self, title, message):
         """Display long candidate comparisons without clipping the results."""
+        japanese = self.current_language == "ja"
         dialog = QDialog(self)
         dialog.setWindowTitle(title)
         dialog.resize(820, 620)
@@ -1502,11 +1541,11 @@ class MainWindow(QMainWindow):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         copy_button = buttons.addButton(
-            "Copy Results",
+            "結果をコピー" if japanese else "Copy Results",
             QDialogButtonBox.ButtonRole.ActionRole,
         )
         save_button = buttons.addButton(
-            "Save Candidate Report",
+            "候補レポートを保存" if japanese else "Save Candidate Report",
             QDialogButtonBox.ButtonRole.ActionRole,
         )
         copy_button.clicked.connect(
