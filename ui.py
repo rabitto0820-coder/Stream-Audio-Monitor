@@ -472,7 +472,9 @@ class MainWindow(QMainWindow):
         )
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
-        self.export_delta_button.setText("Export Opus Delta")
+        self.export_delta_button.setText(
+            "Opus差分を書き出す" if japanese else "Export Opus Delta"
+        )
         self.export_aac_button.setText(texts["aac_export"])
         self.export_youtube_ab_button.setText(texts["ab_export"])
         self.export_codec_pack_button.setText(texts["pack_export"])
@@ -1713,9 +1715,10 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "WAV Comparison", message)
 
     def export_opus_wav(self):
+        japanese = self.current_language == "ja"
         source_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select source WAV",
+            "元のWAVを選択" if japanese else "Select source WAV",
             "",
             "WAV files (*.wav)",
         )
@@ -1728,7 +1731,7 @@ class MainWindow(QMainWindow):
 
         destination_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Opus preview WAV",
+            "OpusプレビューWAVを保存" if japanese else "Save Opus preview WAV",
             default_path,
             "WAV files (*.wav)",
         )
@@ -1753,23 +1756,40 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Opus export error", "Opus書き出しエラー")
-            QMessageBox.warning(self, "Opus Export", str(error))
+            QMessageBox.warning(
+                self,
+                "Opus書き出し" if japanese else "Opus Export",
+                str(error),
+            )
             return
 
         self.set_status("Opus preview exported", "Opusプレビューを書き出しました")
-        message = (
-            f"Created Opus preview WAV\n\n"
-            f"Bitrate: {bitrate} kbps\n"
-            f"YouTube gain: {playback_gain_db:+.1f} dB\n"
-            f"File: {output_path}"
-        )
+        if japanese:
+            message = (
+                "OpusプレビューWAVを作成しました\n\n"
+                f"ビットレート: {bitrate} kbps\n"
+                f"YouTubeゲイン: {playback_gain_db:+.1f} dB\n"
+                f"ファイル: {output_path}"
+            )
+        else:
+            message = (
+                "Created Opus preview WAV\n\n"
+                f"Bitrate: {bitrate} kbps\n"
+                f"YouTube gain: {playback_gain_db:+.1f} dB\n"
+                f"File: {output_path}"
+            )
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "Opus Export", message)
+        QMessageBox.information(
+            self,
+            "Opus書き出し" if japanese else "Opus Export",
+            message,
+        )
 
     def export_opus_delta_wav(self):
+        japanese = self.current_language == "ja"
         source_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select source WAV",
+            "元のWAVを選択" if japanese else "Select source WAV",
             "",
             "WAV files (*.wav)",
         )
@@ -1781,7 +1801,7 @@ class MainWindow(QMainWindow):
         default_path += f"_opus_{self.current_opus_bitrate()}k_delta.wav"
         destination_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save Opus Delta WAV",
+            "Opus差分WAVを保存" if japanese else "Save Opus Delta WAV",
             default_path,
             "WAV files (*.wav)",
         )
@@ -1791,8 +1811,8 @@ class MainWindow(QMainWindow):
 
         gain_text, accepted = QInputDialog.getItem(
             self,
-            "Delta Gain",
-            "Delta WAV gain:",
+            "差分ゲイン" if japanese else "Delta Gain",
+            "差分WAVのゲイン:" if japanese else "Delta WAV gain:",
             ["+0 dB", "+6 dB", "+12 dB"],
             1,
             False,
@@ -1806,7 +1826,7 @@ class MainWindow(QMainWindow):
             bitrate = self.current_opus_bitrate()
             self.set_status(
                 "Exporting Opus Delta...",
-                "Exporting Opus Delta...",
+                "Opus差分を書き出し中...",
             )
             output_path = export_opus_delta(
                 source_path,
@@ -1815,25 +1835,43 @@ class MainWindow(QMainWindow):
                 delta_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("Opus Delta export error", "Opus Delta export error")
-            QMessageBox.warning(self, "Opus Delta Export", str(error))
+            self.set_status("Opus Delta export error", "Opus差分の書き出しエラー")
+            QMessageBox.warning(
+                self,
+                "Opus差分の書き出し" if japanese else "Opus Delta Export",
+                str(error),
+            )
             return
 
-        self.set_status("Opus Delta exported", "Opus Delta exported")
-        message = (
-            "Created Opus Delta WAV\n\n"
-            "This file contains only the sound changed by Opus.\n"
-            f"Bitrate: {bitrate} kbps\n"
-            f"Delta gain: {delta_gain_db:+.1f} dB\n"
-            f"File: {output_path}"
-        )
+        self.set_status("Opus Delta exported", "Opus差分を書き出しました")
+        if japanese:
+            message = (
+                "Opus差分WAVを作成しました\n\n"
+                "このファイルには、Opus圧縮によって変化した音だけが入っています。\n"
+                f"ビットレート: {bitrate} kbps\n"
+                f"差分ゲイン: {delta_gain_db:+.1f} dB\n"
+                f"ファイル: {output_path}"
+            )
+        else:
+            message = (
+                "Created Opus Delta WAV\n\n"
+                "This file contains only the sound changed by Opus.\n"
+                f"Bitrate: {bitrate} kbps\n"
+                f"Delta gain: {delta_gain_db:+.1f} dB\n"
+                f"File: {output_path}"
+            )
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "Opus Delta Export", message)
+        QMessageBox.information(
+            self,
+            "Opus差分の書き出し" if japanese else "Opus Delta Export",
+            message,
+        )
 
     def export_aac_wav(self):
+        japanese = self.current_language == "ja"
         source_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select source WAV",
+            "元のWAVを選択" if japanese else "Select source WAV",
             "",
             "WAV files (*.wav)",
         )
@@ -1844,7 +1882,7 @@ class MainWindow(QMainWindow):
         default_path = source_path.rsplit(".", 1)[0] + "_aac_128k.wav"
         destination_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save AAC preview WAV",
+            "AACプレビューWAVを保存" if japanese else "Save AAC preview WAV",
             default_path,
             "WAV files (*.wav)",
         )
@@ -1868,23 +1906,40 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("AAC export error", "AAC書き出しエラー")
-            QMessageBox.warning(self, "AAC Export", str(error))
+            QMessageBox.warning(
+                self,
+                "AAC書き出し" if japanese else "AAC Export",
+                str(error),
+            )
             return
 
         self.set_status("AAC preview exported", "AACプレビューを書き出しました")
-        message = (
-            "Created AAC preview WAV\n\n"
-            "Bitrate: 128 kbps\n"
-            f"YouTube gain: {playback_gain_db:+.1f} dB\n"
-            f"File: {output_path}"
-        )
+        if japanese:
+            message = (
+                "AACプレビューWAVを作成しました\n\n"
+                "ビットレート: 128 kbps\n"
+                f"YouTubeゲイン: {playback_gain_db:+.1f} dB\n"
+                f"ファイル: {output_path}"
+            )
+        else:
+            message = (
+                "Created AAC preview WAV\n\n"
+                "Bitrate: 128 kbps\n"
+                f"YouTube gain: {playback_gain_db:+.1f} dB\n"
+                f"File: {output_path}"
+            )
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "AAC Export", message)
+        QMessageBox.information(
+            self,
+            "AAC書き出し" if japanese else "AAC Export",
+            message,
+        )
 
     def export_youtube_ab_wavs(self):
+        japanese = self.current_language == "ja"
         source_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select source WAV",
+            "元のWAVを選択" if japanese else "Select source WAV",
             "",
             "WAV files (*.wav)",
         )
@@ -1894,7 +1949,8 @@ class MainWindow(QMainWindow):
 
         destination_folder = QFileDialog.getExistingDirectory(
             self,
-            "Select output folder for YouTube A/B files",
+            "YouTube A/Bファイルの保存フォルダを選択"
+            if japanese else "Select output folder for YouTube A/B files",
         )
 
         if not destination_folder:
@@ -1916,29 +1972,49 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("YouTube A/B export error", "YouTube A/B書き出しエラー")
-            QMessageBox.warning(self, "YouTube A/B Export", str(error))
+            QMessageBox.warning(
+                self,
+                "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
+                str(error),
+            )
             return
 
         self.set_status(
             "YouTube A/B previews exported",
             "YouTube A/Bプレビューを書き出しました",
         )
-        message = (
-            "Created matched YouTube A/B preview WAVs\n\n"
-            f"Bitrate: {bitrate} kbps\n"
-            f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
-            "A — Opus codec only\n"
-            f"{output_paths['opus']}\n\n"
-            "B — Opus + YouTube playback volume\n"
-            f"{output_paths['youtube']}"
-        )
+        if japanese:
+            message = (
+                "音量を揃えたYouTube A/BプレビューWAVを作成しました\n\n"
+                f"ビットレート: {bitrate} kbps\n"
+                f"YouTubeゲイン: {playback_gain_db:+.1f} dB\n\n"
+                "A — Opus圧縮のみ\n"
+                f"{output_paths['opus']}\n\n"
+                "B — Opus圧縮 + YouTube再生音量\n"
+                f"{output_paths['youtube']}"
+            )
+        else:
+            message = (
+                "Created matched YouTube A/B preview WAVs\n\n"
+                f"Bitrate: {bitrate} kbps\n"
+                f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
+                "A — Opus codec only\n"
+                f"{output_paths['opus']}\n\n"
+                "B — Opus + YouTube playback volume\n"
+                f"{output_paths['youtube']}"
+            )
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "YouTube A/B Export", message)
+        QMessageBox.information(
+            self,
+            "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
+            message,
+        )
 
     def export_codec_pack_wavs(self):
+        japanese = self.current_language == "ja"
         source_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Select source WAV",
+            "元のWAVを選択" if japanese else "Select source WAV",
             "",
             "WAV files (*.wav)",
         )
@@ -1948,7 +2024,8 @@ class MainWindow(QMainWindow):
 
         destination_folder = QFileDialog.getExistingDirectory(
             self,
-            "Select output folder for codec preview pack",
+            "コーデックプレビューパックの保存フォルダを選択"
+            if japanese else "Select output folder for codec preview pack",
         )
 
         if not destination_folder:
@@ -1973,22 +2050,39 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Codec pack export error", "コーデックパック書き出しエラー")
-            QMessageBox.warning(self, "Codec Pack Export", str(error))
+            QMessageBox.warning(
+                self,
+                "コーデックパック書き出し" if japanese else "Codec Pack Export",
+                str(error),
+            )
             return
 
         self.set_status(
             "Codec preview pack exported",
             "コーデックプレビューパックを書き出しました",
         )
-        message = (
-            "Created YouTube codec preview pack\n\n"
-            f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
-            f"Opus + YouTube volume\n{paths['opus_youtube']}\n\n"
-            f"AAC + YouTube volume\n{paths['aac_youtube']}\n\n"
-            f"Report\n{paths['report']}"
-        )
+        if japanese:
+            message = (
+                "YouTubeコーデックプレビューパックを作成しました\n\n"
+                f"YouTubeゲイン: {playback_gain_db:+.1f} dB\n\n"
+                f"Opus + YouTube音量\n{paths['opus_youtube']}\n\n"
+                f"AAC + YouTube音量\n{paths['aac_youtube']}\n\n"
+                f"レポート\n{paths['report']}"
+            )
+        else:
+            message = (
+                "Created YouTube codec preview pack\n\n"
+                f"YouTube gain: {playback_gain_db:+.1f} dB\n\n"
+                f"Opus + YouTube volume\n{paths['opus_youtube']}\n\n"
+                f"AAC + YouTube volume\n{paths['aac_youtube']}\n\n"
+                f"Report\n{paths['report']}"
+            )
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "Codec Pack Export", message)
+        QMessageBox.information(
+            self,
+            "コーデックパック書き出し" if japanese else "Codec Pack Export",
+            message,
+        )
 
     def toggle_opus(self, enabled):
         import audio
