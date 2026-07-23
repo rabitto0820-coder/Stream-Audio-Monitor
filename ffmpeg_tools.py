@@ -19,3 +19,19 @@ def find_ffmpeg():
             return str(candidate)
 
     return shutil.which("ffmpeg")
+
+
+def describe_ffmpeg_source():
+    """Return a concise label explaining which FFmpeg SAM will use."""
+    ffmpeg = find_ffmpeg()
+    if ffmpeg is None:
+        return "FFmpeg not found"
+
+    app_folder = Path(__file__).resolve().parent
+    bundled_folder = app_folder / "tools"
+    try:
+        Path(ffmpeg).resolve().relative_to(bundled_folder.resolve())
+    except ValueError:
+        return f"System FFmpeg: {ffmpeg}"
+
+    return f"Bundled FFmpeg: {ffmpeg}"

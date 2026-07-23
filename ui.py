@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 from audio_state import audio_state
 from aac_exporter import aac_support_error, export_aac_preview
 from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
+from ffmpeg_tools import describe_ffmpeg_source
 from opus_exporter import (
     export_opus_delta, export_opus_preview, export_youtube_ab_previews,
     opus_support_error,
@@ -203,6 +204,9 @@ class MainWindow(QMainWindow):
         )
         self.start_button.setToolTip("音声入力・モニター・メーターを開始します。")
         self.stop_button.setToolTip("音声エンジンを完全に停止します。")
+        self.refresh_devices_button.setToolTip(
+            "USBオーディオ機器やVB-CABLEを抜き差しした後、デバイス一覧を更新します。"
+        )
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
         )
@@ -317,6 +321,7 @@ class MainWindow(QMainWindow):
             self.buffer_box,
             self.start_button,
             self.stop_button,
+            self.refresh_devices_button,
             self.clear_clip_button,
             self.reset_lufs_button,
             self.youtube_preset_button,
@@ -429,6 +434,9 @@ class MainWindow(QMainWindow):
         self.language_button.setText(texts["language"])
         self.start_button.setText(texts["start"])
         self.stop_button.setText(texts["stop"])
+        self.refresh_devices_button.setText(
+            "デバイス更新" if japanese else "Refresh Devices"
+        )
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
         self.analyze_candidate_folder_button.setText(
@@ -527,6 +535,7 @@ class MainWindow(QMainWindow):
 
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
+        self.refresh_devices_button = QPushButton("Refresh Devices")
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.analyze_candidate_folder_button = QPushButton("Analyze Folder")
@@ -586,6 +595,11 @@ class MainWindow(QMainWindow):
         device_row.addWidget(self.start_button)
         device_row.addWidget(self.stop_button)
         layout.addLayout(device_row)
+
+        device_tools_row = QHBoxLayout()
+        device_tools_row.addWidget(self.refresh_devices_button)
+        device_tools_row.addStretch()
+        layout.addLayout(device_tools_row)
 
         analysis_row = QHBoxLayout()
         self.analysis_label = QLabel("WAV Analysis")
@@ -672,6 +686,7 @@ class MainWindow(QMainWindow):
 
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
+        self.refresh_devices_button.clicked.connect(self.refresh_devices)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.analyze_candidates_button.clicked.connect(
             self.analyze_candidate_wavs
@@ -795,7 +810,19 @@ class MainWindow(QMainWindow):
         scroll_area.setWidget(meter_container)
         layout.addWidget(scroll_area, 1)
 
-    def load_devices(self):
+    def load_devices(self, preferred_input=None, preferred_output=None):
+        restore_audio_settings = (
+            preferred_input is None and preferred_output is None
+        )
+        if preferred_input is None and self.input_devices:
+            preferred_input = self.input_devices[self.input_box.currentIndex()]
+        if preferred_output is None and self.output_devices:
+            preferred_output = self.output_devices[self.output_box.currentIndex()]
+
+        self.input_devices.clear()
+        self.output_devices.clear()
+        self.input_box.clear()
+        self.output_box.clear()
         devices = sd.query_devices()
 
         for index, device in enumerate(devices):
@@ -815,25 +842,49 @@ class MainWindow(QMainWindow):
         if not saved:
             return
 
-        if saved.get("input_device") in self.input_devices:
+        selected_input = preferred_input
+        if selected_input is None:
+            selected_input = saved.get("input_device")
+        selected_output = preferred_output
+        if selected_output is None:
+            selected_output = saved.get("output_device")
+
+        if selected_input in self.input_devices:
             self.input_box.setCurrentIndex(
-                self.input_devices.index(saved["input_device"])
+                self.input_devices.index(selected_input)
             )
 
-        if saved.get("output_device") in self.output_devices:
+        if selected_output in self.output_devices:
             self.output_box.setCurrentIndex(
-                self.output_devices.index(saved["output_device"])
+                self.output_devices.index(selected_output)
             )
 
-        if saved.get("samplerate") in self.rate_values:
+        if restore_audio_settings and saved.get("samplerate") in self.rate_values:
             self.rate_box.setCurrentIndex(
                 self.rate_values.index(saved["samplerate"])
             )
 
-        if saved.get("blocksize") in self.buffer_values:
+        if restore_audio_settings and saved.get("blocksize") in self.buffer_values:
             self.buffer_box.setCurrentIndex(
                 self.buffer_values.index(saved["blocksize"])
             )
+
+    def refresh_devices(self):
+        preferred_input = (
+            self.input_devices[self.input_box.currentIndex()]
+            if self.input_devices and self.input_box.currentIndex() >= 0
+            else None
+        )
+        preferred_output = (
+            self.output_devices[self.output_box.currentIndex()]
+            if self.output_devices and self.output_box.currentIndex() >= 0
+            else None
+        )
+        self.load_devices(preferred_input, preferred_output)
+        self.set_status(
+            "Audio device list refreshed",
+            "音声デバイス一覧を更新しました",
+        )
 
     def check_opus_support_at_startup(self):
         """Warn early when codec previews are unavailable in a SAM install."""
@@ -856,6 +907,7 @@ class MainWindow(QMainWindow):
             return
 
         print("Codec support: FFmpeg, Opus, and AAC ready.")
+        print(describe_ffmpeg_source())
 
     def start_audio(self):
         if not self.input_devices or not self.output_devices:
