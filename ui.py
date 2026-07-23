@@ -1206,37 +1206,42 @@ class MainWindow(QMainWindow):
             dialog.accept()
             results = []
             source = Path(path)
+
+            def add_result(name, result):
+                success = bool(result) and not result.startswith("ERROR: ")
+                results.append((name, success, result))
+
             if analyze_button.isChecked():
                 result = self.analyze_wav_file(path, show_result=False)
-                results.append(("WAV解析", result))
+                add_result("WAV解析", result)
             if opus_button.isChecked():
                 destination = folder / f"{source.stem}_opus_{self.current_opus_bitrate()}k.wav"
                 result = self.export_opus_wav(
                     path, str(destination), show_result=False
                 )
-                results.append(("Opus WAV", result))
+                add_result("Opus WAV", result)
             if aac_button.isChecked():
                 destination = folder / f"{source.stem}_aac_128k.wav"
                 result = self.export_aac_wav(
                     path, str(destination), show_result=False
                 )
-                results.append(("AAC WAV", result))
+                add_result("AAC WAV", result)
             if delta_button.isChecked():
                 destination = folder / f"{source.stem}_opus_{self.current_opus_bitrate()}k_delta.wav"
                 result = self.export_opus_delta_wav(
                     path, str(destination), show_result=False
                 )
-                results.append(("Opus差分WAV", result))
+                add_result("Opus差分WAV", result)
             if ab_button.isChecked():
                 result = self.export_youtube_ab_wavs(
                     path, str(folder), show_result=False
                 )
-                results.append(("YouTube A/B", result))
+                add_result("YouTube A/B", result)
             if pack_button.isChecked():
                 result = self.export_codec_pack_wavs(
                     path, str(folder), show_result=False
                 )
-                results.append(("コーデックパック", result))
+                add_result("コーデックパック", result)
 
             self.show_file_tools_report(path, folder, results)
 
@@ -1258,10 +1263,10 @@ class MainWindow(QMainWindow):
             )
         lines.append("")
         lines.append("実行結果:" if japanese else "Results:")
-        for name, result in results:
-            status = "完了" if result else "失敗"
+        for name, success, result in results:
+            status = "完了" if success else "失敗"
             if not japanese:
-                status = "Completed" if result else "Failed"
+                status = "Completed" if success else "Failed"
             lines.append(f"• {name}: {status}")
             if result:
                 lines.extend(
@@ -1516,7 +1521,7 @@ class MainWindow(QMainWindow):
                     "WAV解析" if japanese else "WAV Analysis",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         minutes, seconds = divmod(int(result["duration_seconds"]), 60)
         readiness = self.format_offline_youtube_readiness(result)
@@ -2007,7 +2012,7 @@ class MainWindow(QMainWindow):
                     "Opus書き出し" if japanese else "Opus Export",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         self.set_status("Opus preview exported", "Opusプレビューを書き出しました")
         if japanese:
@@ -2094,7 +2099,7 @@ class MainWindow(QMainWindow):
                     "Opus差分の書き出し" if japanese else "Opus Delta Export",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         self.set_status("Opus Delta exported", "Opus差分を書き出しました")
         if japanese:
@@ -2169,7 +2174,7 @@ class MainWindow(QMainWindow):
                     "AAC書き出し" if japanese else "AAC Export",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         self.set_status("AAC preview exported", "AACプレビューを書き出しました")
         if japanese:
@@ -2242,7 +2247,7 @@ class MainWindow(QMainWindow):
                     "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         self.set_status(
             "YouTube A/B previews exported",
@@ -2327,7 +2332,7 @@ class MainWindow(QMainWindow):
                     "コーデックパック書き出し" if japanese else "Codec Pack Export",
                     str(error),
                 )
-            return
+            return f"ERROR: {error}"
 
         self.set_status(
             "Codec preview pack exported",
