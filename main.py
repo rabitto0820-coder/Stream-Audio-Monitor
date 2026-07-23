@@ -19,6 +19,7 @@ def start_stream(
     blocksize
 ):
     global stream
+    start_stream.last_error = ""
 
     try:
         if stream is not None:
@@ -43,6 +44,7 @@ def start_stream(
             print("AUDIO SETTING ERROR")
             print(error)
             print("====================")
+            start_stream.last_error = str(error)
             return False
 
         print("Audio Check OK")
@@ -75,6 +77,7 @@ def start_stream(
         print(error)
         print("====================")
 
+        start_stream.last_error = str(error)
         stream = None
         return False
 

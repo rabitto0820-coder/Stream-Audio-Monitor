@@ -1391,7 +1391,12 @@ class MainWindow(QMainWindow):
             self.set_status("Running", "動作中")
             self.set_audio_running_state(True)
         else:
-            self.set_status("Audio error", "音声エラー")
+            error_detail = getattr(self.start_stream, "last_error", "")
+            self.set_status(
+                "Audio error",
+                "音声エラー",
+                error_detail=error_detail,
+            )
             self.set_audio_running_state(False)
 
     def stop_audio(self):
