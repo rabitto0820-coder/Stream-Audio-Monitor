@@ -2212,6 +2212,10 @@ class MainWindow(QMainWindow):
         for widget in self.detail_meter_widgets:
             widget.setVisible(show_details)
 
+        # Codec Delta Monitor remains available in production view, but the
+        # detailed difference graph is reserved for development checks.
+        self.codec_difference.setVisible(self.developer_mode)
+
     def toggle_mono_preview(self, enabled):
         import audio
 
