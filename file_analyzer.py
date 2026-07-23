@@ -92,6 +92,7 @@ def analyze_wav(path, target_lufs=-14.0):
 def analyze_opus_impact(path, bitrate_kbps=128):
     """Measure the level of the audible difference introduced by Opus."""
     source = analyze_wav(path)
+    source_bands = _spectral_band_levels(path)
 
     with tempfile.TemporaryDirectory(prefix="stream_audio_monitor_") as folder:
         delta_path = Path(folder) / "opus_delta.wav"
@@ -102,11 +103,20 @@ def analyze_opus_impact(path, bitrate_kbps=128):
             delta_gain_db=0.0,
         )
         delta = analyze_wav(delta_path)
+        delta_bands = _spectral_band_levels(delta_path)
+
+    relative_bands = {
+        name: delta_bands[name] - source_bands[name]
+        for name in source_bands
+    }
+    strongest_band = max(relative_bands, key=relative_bands.get)
 
     return {
         "delta_lufs_i": delta["lufs_i"],
         "delta_peak_db": delta["peak_db"],
         "relative_lufs_db": delta["lufs_i"] - source["lufs_i"],
+        "strongest_band": strongest_band,
+        "strongest_band_relative_db": relative_bands[strongest_band],
     }
 
 

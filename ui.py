@@ -1383,7 +1383,9 @@ class MainWindow(QMainWindow):
                 if impact:
                     rows[-1] += (
                         f"\n  Opus Delta: {impact['relative_lufs_db']:.1f} dB "
-                        f"vs source | Delta LUFS: {impact['delta_lufs_i']:.1f}"
+                        f"vs source | Delta LUFS: {impact['delta_lufs_i']:.1f}\n"
+                        f"  Strongest high-frequency delta: "
+                        f"{self.format_opus_delta_band(impact)}"
                     )
                 else:
                     rows[-1] += (
@@ -1431,7 +1433,9 @@ class MainWindow(QMainWindow):
                 )
             message += (
                 "\n\nOpus Delta guide: a more negative value versus source "
-                "means less changed codec-difference energy."
+                "means less changed codec-difference energy.\n"
+                "The strongest high-frequency delta identifies whether 4-8 kHz "
+                "or 8-16 kHz changed more relative to the source."
             )
         if errors:
             error_title = "解析できなかったファイル" if japanese else "Files not analyzed"
@@ -1477,6 +1481,18 @@ class MainWindow(QMainWindow):
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         dialog.exec()
+
+    @staticmethod
+    def format_opus_delta_band(impact):
+        band_names = {
+            "presence": "4-8 kHz",
+            "high": "8-16 kHz",
+        }
+        band = band_names.get(impact["strongest_band"], "unknown")
+        return (
+            f"{band} "
+            f"({impact['strongest_band_relative_db']:.1f} dB vs source)"
+        )
 
     def copy_candidate_report(self, message):
         QApplication.clipboard().setText(message)
