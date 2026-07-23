@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         status_row.setVerticalSpacing(6)
 
         self.status = QLabel("Status: Ready")
-        self.latency_indicator = QLabel("Latency: -- ms")
+        self.latency_indicator = QLabel("Base latency: -- ms")
 
         self.input_signal_indicator = QLabel("INPUT: SILENT")
 
@@ -224,6 +224,10 @@ class MainWindow(QMainWindow):
             "YouTube向けのモニター設定をまとめてONにします。\n"
             "Opus Preview、YouTube Playback Normalize、Safety Limiterを設定します。"
         )
+        self.youtube_reference_button.setToolTip(
+            "すでに圧縮済みのYouTube参考曲を聴く時に押します。\n"
+            "Opus/AACとYouTube音量シミュレーションをOFFにして二重処理を防ぎます。"
+        )
         self.analyze_wav_button.setToolTip(
             "WAVファイル全体のLUFS、True Peak、YouTubeでの音量変化を確認します。"
         )
@@ -333,6 +337,7 @@ class MainWindow(QMainWindow):
             self.clear_clip_button,
             self.reset_lufs_button,
             self.youtube_preset_button,
+            self.youtube_reference_button,
             self.podcast_preset_button,
             self.broadcast_preset_button,
             self.analyze_wav_button,
@@ -487,6 +492,9 @@ class MainWindow(QMainWindow):
         self.clear_clip_button.setText(texts["clear_clip"])
         self.reset_lufs_button.setText(texts["reset_lufs"])
         self.youtube_preset_button.setText(texts["youtube"])
+        self.youtube_reference_button.setText(
+            "YouTube 参考曲" if japanese else "YouTube Reference"
+        )
         self.podcast_preset_button.setText(texts["podcast"])
         self.broadcast_preset_button.setText(texts["broadcast"])
         self.calibrate_youtube_button.setText(texts["calibrate"])
@@ -588,6 +596,7 @@ class MainWindow(QMainWindow):
         self.youtube_target_label = QLabel("YT Ref: -14.0 LUFS")
         self.calibrate_youtube_button = QPushButton("Calibrate YouTube")
         self.reset_youtube_target_button = QPushButton("Reset YT Ref")
+        self.youtube_reference_button = QPushButton("YouTube Reference")
 
         self.load_devices()
 
@@ -695,6 +704,7 @@ class MainWindow(QMainWindow):
         youtube_row.addWidget(self.youtube_target_label)
         youtube_row.addWidget(self.calibrate_youtube_button)
         youtube_row.addWidget(self.reset_youtube_target_button)
+        youtube_row.addWidget(self.youtube_reference_button)
         self.youtube_note_label = QLabel(
             "Use the normalized volume % from YouTube Stats for Nerds."
         )
@@ -743,6 +753,9 @@ class MainWindow(QMainWindow):
         self.calibrate_youtube_button.clicked.connect(self.calibrate_youtube)
         self.reset_youtube_target_button.clicked.connect(
             self.reset_youtube_target
+        )
+        self.youtube_reference_button.clicked.connect(
+            self.apply_youtube_reference_preset
         )
 
         self.opus_bitrate_box.currentIndexChanged.connect(
@@ -974,7 +987,9 @@ class MainWindow(QMainWindow):
             f"Output: {output_name}\n"
             f"Sample rate: {rate} Hz\n"
             f"Buffer: {buffer_size} samples\n"
-            f"Estimated round-trip latency: ~{latency_ms:.0f} ms\n\n"
+            f"Base I/O buffer latency: ~{latency_ms:.0f} ms\n"
+            f"Codec preview: {audio_state.codec_preview_mode}\n"
+            "Note: Real Opus/AAC preview adds extra codec buffering latency.\n\n"
             f"FFmpeg: {describe_ffmpeg_source()}\n"
             f"Opus: {opus_status}\n"
             f"AAC: {aac_status}"
@@ -2264,6 +2279,18 @@ class MainWindow(QMainWindow):
         self.aac_checkbox.setChecked(False)
         self.set_status("Browser sample Opus preview", "ブラウザサンプル用Opusプレビュー")
 
+    def apply_youtube_reference_preset(self):
+        """Avoid double codec and volume processing for an existing YouTube track."""
+        self.youtube_checkbox.setChecked(False)
+        self.aac_checkbox.setChecked(False)
+        self.codec_delta_checkbox.setChecked(False)
+        self.youtube_normalize_checkbox.setChecked(False)
+        self.normalizer_checkbox.setChecked(False)
+        self.set_status(
+            "YouTube reference: codec bypass",
+            "YouTube参考曲: 二重圧縮をOFFにしました",
+        )
+
     def update_headroom_indicator(self):
         headroom_db = -audio_state.true_peak_db
         label = "余裕" if self.current_language == "ja" else "Headroom"
@@ -2439,7 +2466,15 @@ class MainWindow(QMainWindow):
         rate = self.rate_values[self.rate_box.currentIndex()]
         buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
         latency_ms = 2000.0 * buffer_size / rate
-        self.latency_indicator.setText(f"Latency: ~{latency_ms:.0f} ms")
+        codec_active = audio_state.codec_preview_mode not in {"OFF", "BYPASS"}
+        if codec_active:
+            self.latency_indicator.setText(
+                f"Base: ~{latency_ms:.0f} ms + codec delay"
+            )
+        else:
+            self.latency_indicator.setText(
+                f"Base latency: ~{latency_ms:.0f} ms"
+            )
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
         self.rms_meter.set_level(audio_state.rms_db)
