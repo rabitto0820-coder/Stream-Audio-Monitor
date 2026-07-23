@@ -6,8 +6,8 @@ import sounddevice as sd
 
 from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QFileDialog,
-    QGridLayout, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame,
+    QFileDialog, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
     QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea,
     QVBoxLayout, QWidget,
 )
@@ -1259,14 +1259,28 @@ class MainWindow(QMainWindow):
         layout.addWidget(report_text)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            "Copy Results",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
         save_button = buttons.addButton(
             "Save Candidate Report",
             QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: self.copy_candidate_report(message)
         )
         save_button.clicked.connect(self.save_candidate_report)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
         dialog.exec()
+
+    def copy_candidate_report(self, message):
+        QApplication.clipboard().setText(message)
+        self.set_status(
+            "Candidate report copied",
+            "候補レポートをコピーしました",
+        )
 
     def save_candidate_report(self):
         if not self.last_candidate_report:
