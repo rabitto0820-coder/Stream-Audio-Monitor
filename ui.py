@@ -981,22 +981,42 @@ class MainWindow(QMainWindow):
         output_name = self.output_box.currentText() or "(not selected)"
         opus_status = opus_support_error() or "Ready"
         aac_status = aac_support_error() or "Ready"
-        message = (
-            "Stream Audio Monitor - System Check\n\n"
-            f"Input: {input_name}\n"
-            f"Output: {output_name}\n"
-            f"Sample rate: {rate} Hz\n"
-            f"Buffer: {buffer_size} samples\n"
-            f"Base I/O buffer latency: ~{latency_ms:.0f} ms\n"
-            f"Codec preview: {audio_state.codec_preview_mode}\n"
-            "Note: Real Opus/AAC preview adds extra codec buffering latency.\n\n"
-            f"FFmpeg: {describe_ffmpeg_source()}\n"
-            f"Opus: {opus_status}\n"
-            f"AAC: {aac_status}"
-        )
+        japanese = self.current_language == "ja"
+        if japanese:
+            title = "システム確認"
+            copy_label = "コピー"
+            message = (
+                "Stream Audio Monitor - システム確認\n\n"
+                f"入力: {input_name}\n"
+                f"出力: {output_name}\n"
+                f"サンプルレート: {rate} Hz\n"
+                f"バッファ: {buffer_size} samples\n"
+                f"基本I/Oバッファ遅延: ~{latency_ms:.0f} ms\n"
+                f"コーデックプレビュー: {audio_state.codec_preview_mode}\n"
+                "注意: Real Opus/AACプレビューでは、コーデックの追加遅延が発生します。\n\n"
+                f"FFmpeg: {describe_ffmpeg_source()}\n"
+                f"Opus: {opus_status}\n"
+                f"AAC: {aac_status}"
+            )
+        else:
+            title = "System Check"
+            copy_label = "Copy"
+            message = (
+                "Stream Audio Monitor - System Check\n\n"
+                f"Input: {input_name}\n"
+                f"Output: {output_name}\n"
+                f"Sample rate: {rate} Hz\n"
+                f"Buffer: {buffer_size} samples\n"
+                f"Base I/O buffer latency: ~{latency_ms:.0f} ms\n"
+                f"Codec preview: {audio_state.codec_preview_mode}\n"
+                "Note: Real Opus/AAC preview adds extra codec buffering latency.\n\n"
+                f"FFmpeg: {describe_ffmpeg_source()}\n"
+                f"Opus: {opus_status}\n"
+                f"AAC: {aac_status}"
+            )
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("System Check")
+        dialog.setWindowTitle(title)
         dialog.resize(760, 430)
         layout = QVBoxLayout(dialog)
         check_text = QPlainTextEdit()
@@ -1006,7 +1026,7 @@ class MainWindow(QMainWindow):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         copy_button = buttons.addButton(
-            "Copy",
+            copy_label,
             QDialogButtonBox.ButtonRole.ActionRole,
         )
         copy_button.clicked.connect(
