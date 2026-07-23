@@ -662,43 +662,9 @@ class MainWindow(QMainWindow):
         device_tools_row.addStretch()
         layout.addLayout(device_tools_row)
 
-        self.developer_panel = QFrame()
-        self.developer_panel.setFrameShape(QFrame.Shape.StyledPanel)
-        developer_layout = QVBoxLayout(self.developer_panel)
-        developer_layout.setContentsMargins(8, 8, 8, 8)
-        developer_layout.setSpacing(8)
-
-        analysis_row = QHBoxLayout()
         self.analysis_label = QLabel("WAV Analysis")
-        self.analysis_label.setStyleSheet("font-weight: bold;")
-        analysis_row.addWidget(self.analysis_label)
-        analysis_row.addWidget(self.analyze_wav_button)
-        analysis_row.addWidget(self.analyze_candidates_button)
-        analysis_row.addWidget(self.analyze_candidate_folder_button)
-        analysis_row.addWidget(self.compare_wav_button)
-        analysis_row.addStretch()
-        developer_layout.addLayout(analysis_row)
-
-        export_row = QHBoxLayout()
         self.export_label = QLabel("Preview Exports")
-        self.export_label.setStyleSheet("font-weight: bold;")
-        export_row.addWidget(self.export_label)
-        export_row.addWidget(self.export_opus_button)
-        export_row.addWidget(self.export_delta_button)
-        export_row.addWidget(self.export_aac_button)
-        export_row.addWidget(self.youtube_volume_export_checkbox)
-        export_row.addStretch()
-        developer_layout.addLayout(export_row)
-
-        youtube_export_row = QHBoxLayout()
         self.youtube_export_label = QLabel("YouTube Exports")
-        self.youtube_export_label.setStyleSheet("font-weight: bold;")
-        youtube_export_row.addWidget(self.youtube_export_label)
-        youtube_export_row.addWidget(self.export_youtube_ab_button)
-        youtube_export_row.addWidget(self.export_codec_pack_button)
-        youtube_export_row.addStretch()
-        developer_layout.addLayout(youtube_export_row)
-        layout.addWidget(self.developer_panel)
 
         preview_row = QHBoxLayout()
         preview_row.addWidget(self.youtube_checkbox)
@@ -1119,6 +1085,15 @@ class MainWindow(QMainWindow):
         paths.addWidget(destination_button, 1, 2)
         layout.addLayout(paths)
 
+        apply_youtube_volume = QCheckBox(
+            "書き出しにYouTube音量を反映"
+            if japanese else "Apply YouTube volume to exports"
+        )
+        apply_youtube_volume.setChecked(
+            self.youtube_volume_export_checkbox.isChecked()
+        )
+        layout.addWidget(apply_youtube_volume)
+
         def choose_source():
             path, _ = QFileDialog.getOpenFileName(
                 dialog,
@@ -1225,6 +1200,9 @@ class MainWindow(QMainWindow):
                 )
                 return
 
+            self.youtube_volume_export_checkbox.setChecked(
+                apply_youtube_volume.isChecked()
+            )
             dialog.accept()
             results = []
             source = Path(path)
@@ -2461,7 +2439,6 @@ class MainWindow(QMainWindow):
 
     def set_developer_mode(self, enabled):
         self.developer_mode = bool(enabled)
-        self.developer_panel.setVisible(self.developer_mode)
         self.update_detail_meter_visibility()
 
         if self.developer_mode:
