@@ -210,6 +210,9 @@ class MainWindow(QMainWindow):
         self.routing_help_button.setToolTip(
             "ブラウザ、SAM、DAW、オーディオインターフェースの音の通り道を表示します。"
         )
+        self.system_check_button.setToolTip(
+            "現在の音声設定とコーデック対応状況を確認・コピーします。"
+        )
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
         )
@@ -326,6 +329,7 @@ class MainWindow(QMainWindow):
             self.stop_button,
             self.refresh_devices_button,
             self.routing_help_button,
+            self.system_check_button,
             self.clear_clip_button,
             self.reset_lufs_button,
             self.youtube_preset_button,
@@ -444,6 +448,9 @@ class MainWindow(QMainWindow):
         self.routing_help_button.setText(
             "音の経路" if japanese else "Routing Help"
         )
+        self.system_check_button.setText(
+            "システム確認" if japanese else "System Check"
+        )
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
         self.analyze_candidate_folder_button.setText(
@@ -544,6 +551,7 @@ class MainWindow(QMainWindow):
         self.stop_button = QPushButton("Stop")
         self.refresh_devices_button = QPushButton("Refresh Devices")
         self.routing_help_button = QPushButton("Routing Help")
+        self.system_check_button = QPushButton("System Check")
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.analyze_candidate_folder_button = QPushButton("Analyze Folder")
@@ -607,6 +615,7 @@ class MainWindow(QMainWindow):
         device_tools_row = QHBoxLayout()
         device_tools_row.addWidget(self.refresh_devices_button)
         device_tools_row.addWidget(self.routing_help_button)
+        device_tools_row.addWidget(self.system_check_button)
         device_tools_row.addStretch()
         layout.addLayout(device_tools_row)
 
@@ -697,6 +706,7 @@ class MainWindow(QMainWindow):
         self.stop_button.clicked.connect(self.stop_audio)
         self.refresh_devices_button.clicked.connect(self.refresh_devices)
         self.routing_help_button.clicked.connect(self.show_routing_guide)
+        self.system_check_button.clicked.connect(self.show_system_check)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.analyze_candidates_button.clicked.connect(
             self.analyze_candidate_wavs
@@ -948,6 +958,54 @@ class MainWindow(QMainWindow):
         self.set_status(
             "Routing guide copied",
             "音の経路をコピーしました",
+        )
+
+    def show_system_check(self):
+        rate = self.rate_values[self.rate_box.currentIndex()]
+        buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
+        latency_ms = 2000.0 * buffer_size / rate
+        input_name = self.input_box.currentText() or "(not selected)"
+        output_name = self.output_box.currentText() or "(not selected)"
+        opus_status = opus_support_error() or "Ready"
+        aac_status = aac_support_error() or "Ready"
+        message = (
+            "Stream Audio Monitor - System Check\n\n"
+            f"Input: {input_name}\n"
+            f"Output: {output_name}\n"
+            f"Sample rate: {rate} Hz\n"
+            f"Buffer: {buffer_size} samples\n"
+            f"Estimated round-trip latency: ~{latency_ms:.0f} ms\n\n"
+            f"FFmpeg: {describe_ffmpeg_source()}\n"
+            f"Opus: {opus_status}\n"
+            f"AAC: {aac_status}"
+        )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("System Check")
+        dialog.resize(760, 430)
+        layout = QVBoxLayout(dialog)
+        check_text = QPlainTextEdit()
+        check_text.setReadOnly(True)
+        check_text.setPlainText(message)
+        layout.addWidget(check_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            "Copy",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: self.copy_system_check(message)
+        )
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def copy_system_check(self, message):
+        QApplication.clipboard().setText(message)
+        self.set_status(
+            "System check copied",
+            "システム確認をコピーしました",
         )
 
     def check_opus_support_at_startup(self):
