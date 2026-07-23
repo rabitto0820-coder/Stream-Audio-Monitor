@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout,
 )
 
+from app_info import APP_NAME, APP_VERSION, support_environment_text
 from audio import callback, configure_audio
 from audio_state import audio_state
 from check_devices import validate_audio_settings
@@ -28,9 +29,12 @@ def handle_unexpected_error(error_type, error, error_traceback):
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     report_text = (
-        "Stream Audio Monitor crash report\n"
+        f"{APP_NAME} crash report\n"
+        f"SAM version: {APP_VERSION}\n"
         "Error code: SAM-E-UNEXPECTED\n"
         f"Time: {datetime.now().isoformat(timespec='seconds')}\n\n"
+        "Environment\n"
+        f"{support_environment_text()}\n\n"
         + "".join(traceback.format_exception(error_type, error, error_traceback))
     )
     print(report_text)
@@ -177,9 +181,9 @@ def stop_stream():
 
 
 print("======================================")
-print(" Stream Audio Monitor")
+print(f" {APP_NAME}")
 print("======================================")
-print("Version 1.2")
+print(f"Version {APP_VERSION}")
 
 app = QApplication(sys.argv)
 

@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from app_info import support_environment_text
 from audio_state import audio_state
 from aac_exporter import aac_support_error, export_aac_preview
 from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
@@ -1518,6 +1519,8 @@ class MainWindow(QMainWindow):
             f"バッファ: {buffer_size} samples\n"
             f"コーデック: {audio_state.codec_preview_mode}\n"
             f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "環境情報\n"
+            f"{support_environment_text()}\n\n"
             "直近の操作履歴\n"
             if japanese else
             "SAM Support Information\n\n"
@@ -1529,6 +1532,8 @@ class MainWindow(QMainWindow):
             f"Buffer: {buffer_size} samples\n"
             f"Codec: {audio_state.codec_preview_mode}\n"
             f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "Environment\n"
+            f"{support_environment_text()}\n\n"
             "Recent operation history\n"
         )
         message += "\n".join(self.debug_events[-20:]) or "(no events)"
