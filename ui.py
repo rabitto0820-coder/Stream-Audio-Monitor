@@ -461,9 +461,9 @@ class MainWindow(QMainWindow):
         mode_state = "ON" if self.developer_mode else "OFF"
         self.developer_mode_button.setText(f"{mode_text}: {mode_state}")
         self.developer_mode_button.setToolTip(
-            "WAV解析や書き出しなど、開発・確認用の操作を表示します。"
+            "WAV解析・書き出し・詳細メーターなど、開発・確認用の表示を切り替えます。"
             if japanese else
-            "Show development and checking controls such as WAV analysis and exports."
+            "Show development displays such as WAV analysis, exports, and detailed meters."
         )
         self.start_button.setText(texts["start"])
         self.stop_button.setText(texts["stop"])
@@ -2181,8 +2181,7 @@ class MainWindow(QMainWindow):
 
     def set_codec_focus(self, enabled):
         self.codec_focus_enabled = bool(enabled)
-        for widget in self.detail_meter_widgets:
-            widget.setVisible(not self.codec_focus_enabled)
+        self.update_detail_meter_visibility()
 
         if self.codec_focus_enabled:
             self.codec_focus_button.setText("Codec Focus: ON")
@@ -2196,6 +2195,7 @@ class MainWindow(QMainWindow):
     def set_developer_mode(self, enabled):
         self.developer_mode = bool(enabled)
         self.developer_panel.setVisible(self.developer_mode)
+        self.update_detail_meter_visibility()
 
         if self.developer_mode:
             self.developer_mode_button.setStyleSheet(
@@ -2205,6 +2205,12 @@ class MainWindow(QMainWindow):
             self.developer_mode_button.setStyleSheet("")
 
         self.apply_language()
+
+    def update_detail_meter_visibility(self):
+        """Keep detailed metering available without crowding production view."""
+        show_details = self.developer_mode and not self.codec_focus_enabled
+        for widget in self.detail_meter_widgets:
+            widget.setVisible(show_details)
 
     def toggle_mono_preview(self, enabled):
         import audio
