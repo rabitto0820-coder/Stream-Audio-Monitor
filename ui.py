@@ -1189,7 +1189,19 @@ class MainWindow(QMainWindow):
                     )
 
         title = "候補WAVの比較" if japanese else "Candidate WAV Comparison"
-        message = "\n\n".join(rows)
+        conditions = [
+            "測定条件" if japanese else "Analysis settings",
+            f"Files analyzed: {len(results)}",
+            f"YouTube reference: {self.youtube_target_lufs:.1f} LUFS",
+        ]
+        if measure_opus_impact:
+            conditions.append(
+                f"Opus impact: {self.current_opus_bitrate()} kbps"
+            )
+        else:
+            conditions.append("Opus impact: skipped")
+
+        message = "\n".join(conditions) + "\n\n" + "\n\n".join(rows)
         if measure_opus_impact:
             ranked_impacts = sorted(
                 (
