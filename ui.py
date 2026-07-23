@@ -7,8 +7,8 @@ import sounddevice as sd
 from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
-    QInputDialog, QLabel, QMainWindow, QMessageBox, QPushButton, QScrollArea,
-    QVBoxLayout, QWidget,
+    QInputDialog, QLabel, QMainWindow, QMessageBox, QProgressDialog,
+    QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from audio_state import audio_state
@@ -1113,8 +1113,27 @@ class MainWindow(QMainWindow):
         )
         results = []
         errors = []
+        progress = QProgressDialog(
+            "Analyzing candidate WAV files...",
+            "Cancel",
+            0,
+            len(paths),
+            self,
+        )
+        progress.setWindowTitle("Candidate Analysis")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setValue(0)
+        cancelled = False
 
-        for path in paths:
+        for index, path in enumerate(paths, start=1):
+            if progress.wasCanceled():
+                cancelled = True
+                break
+
+            progress.setLabelText(
+                f"Analyzing {index}/{len(paths)}\n{Path(path).name}"
+            )
             try:
                 result = analyze_wav(path, self.youtube_target_lufs)
                 if measure_opus_impact:
@@ -1128,6 +1147,9 @@ class MainWindow(QMainWindow):
                 results.append(result)
             except (OSError, ValueError) as error:
                 errors.append(f"{path}: {error}")
+            progress.setValue(index)
+
+        progress.close()
 
         if not results:
             self.set_status("Candidate analysis error", "候補WAVの解析エラー")
@@ -1198,6 +1220,10 @@ class MainWindow(QMainWindow):
         if errors:
             error_title = "解析できなかったファイル" if japanese else "Files not analyzed"
             message += f"\n\n{error_title}\n" + "\n".join(errors)
+        if cancelled:
+            message += (
+                f"\n\nAnalysis cancelled: showing {len(results)} of {len(paths)} files."
+            )
 
         self.set_status(
             "Candidate WAV analysis complete",
