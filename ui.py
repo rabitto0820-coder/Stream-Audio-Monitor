@@ -2482,6 +2482,8 @@ class MainWindow(QMainWindow):
         # Codec Delta Monitor remains available in production view, but the
         # detailed difference graph is reserved for development checks.
         self.codec_difference.setVisible(self.developer_mode)
+        self.codec_focus_button.setVisible(self.developer_mode)
+        self.reset_codec_difference_button.setVisible(self.developer_mode)
 
     def toggle_mono_preview(self, enabled):
         import audio
