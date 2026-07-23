@@ -72,6 +72,7 @@ def configure_audio(new_sample_rate, channels=2):
 
     audio_state.sample_rate = sample_rate
     audio_state.correlation = 0.0
+    audio_state.reset_runtime_error()
 
     loudness_meter.reset(
         sample_rate=sample_rate,
@@ -247,7 +248,9 @@ def _decibels(amplitude):
 
 def callback(indata, outdata, frames, time_info, status):
     if status:
-        print(status)
+        message = str(status)
+        audio_state.report_runtime_error(message)
+        print(f"AUDIO RUNTIME WARNING: {message}")
 
     data = indata.copy()
     codec_reference = np.zeros_like(data)

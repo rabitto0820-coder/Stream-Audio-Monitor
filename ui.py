@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self.last_debug_status = ""
         self.last_support_error_code = ""
         self.last_support_error_detail = ""
+        self.last_runtime_error_count = 0
         self.codec_focus_enabled = False
         self.developer_mode = self.saved_settings.get(
             "preview_settings", {}
@@ -1547,6 +1548,7 @@ class MainWindow(QMainWindow):
         default_codes = {
             "No usable audio device found": "SAM-E-AUDIO-DEVICE",
             "Audio error": "SAM-E-AUDIO-START",
+            "Audio runtime warning": "SAM-E-AUDIO-RUNTIME",
             "WAV analysis error": "SAM-E-WAV-ANALYSIS",
             "Opus export error": "SAM-E-OPUS-EXPORT",
             "Opus Delta export error": "SAM-E-DELTA-EXPORT",
@@ -3157,6 +3159,14 @@ class MainWindow(QMainWindow):
         self.youtube_readiness_indicator.setStyleSheet(style)
 
     def update_gui(self):
+        if audio_state.runtime_error_count != self.last_runtime_error_count:
+            self.last_runtime_error_count = audio_state.runtime_error_count
+            self.set_status(
+                "Audio runtime warning",
+                "再生中の音声エラー",
+                error_detail=audio_state.runtime_error_message,
+            )
+
         rate = self.rate_values[self.rate_box.currentIndex()]
         buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
         latency_ms = 2000.0 * buffer_size / rate

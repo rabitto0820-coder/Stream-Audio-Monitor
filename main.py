@@ -6,11 +6,13 @@ from pathlib import Path
 
 import sounddevice as sd
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout,
 )
 
 from audio import callback, configure_audio
+from audio_state import audio_state
 from check_devices import validate_audio_settings
 from ui import MainWindow
 
@@ -190,6 +192,14 @@ window = MainWindow(
 )
 
 window.show()
+
+if "--test-runtime-audio-error" in sys.argv:
+    QTimer.singleShot(
+        800,
+        lambda: audio_state.report_runtime_error(
+            "Intentional runtime audio warning test requested"
+        ),
+    )
 
 try:
     sys.exit(app.exec())

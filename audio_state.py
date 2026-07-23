@@ -40,12 +40,31 @@ class AudioState:
         )
         self.codec_difference_active = False
 
+        # Runtime audio issues are written by the audio callback and read by
+        # the GUI timer.  Keeping this state here avoids touching Qt widgets
+        # from the real-time audio thread.
+        self.runtime_error_count = 0
+        self.runtime_error_message = ""
+
         self.sample_rate = 48000
 
         self.last_audio = np.zeros(
             (2048, 2),
             dtype=np.float32
         )
+
+    def reset_runtime_error(self):
+        """Clear runtime audio diagnostics when a new stream starts."""
+        self.runtime_error_message = ""
+
+    def report_runtime_error(self, message):
+        """Store a new callback warning without repeatedly reporting it."""
+        message = str(message).strip()
+        if not message or message == self.runtime_error_message:
+            return
+
+        self.runtime_error_message = message
+        self.runtime_error_count += 1
 
 
 audio_state = AudioState()
