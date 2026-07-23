@@ -1252,9 +1252,10 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def analyze_wav_file(self):
+        japanese = self.current_language == "ja"
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Analyze WAV file",
+            "WAVを解析" if japanese else "Analyze WAV file",
             "",
             "WAV files (*.wav)",
         )
@@ -1267,30 +1268,55 @@ class MainWindow(QMainWindow):
             result = analyze_wav(path, self.youtube_target_lufs)
         except (OSError, ValueError) as error:
             self.set_status("WAV analysis error", "WAV解析エラー")
-            QMessageBox.warning(self, "WAV Analysis", str(error))
+            QMessageBox.warning(
+                self,
+                "WAV解析" if japanese else "WAV Analysis",
+                str(error),
+            )
             return
 
         minutes, seconds = divmod(int(result["duration_seconds"]), 60)
         readiness = self.format_offline_youtube_readiness(result)
-        message = (
-            f"File: {result['name']}\n"
-            f"Duration: {minutes:02d}:{seconds:02d}\n"
-            f"Integrated LUFS: {result['lufs_i']:.1f}\n"
-            f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
-            f"Estimated True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
-            f"Stereo Correlation: {result['stereo_correlation']:+.2f}\n\n"
-            f"Mono Check: {self.format_stereo_check(result)}\n\n"
-            "YouTube playback estimate\n"
-            f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
-            f"Volume: {result['youtube_percent']:.0f}%\n\n"
-            f"YouTube Check: {readiness}\n\n"
-            "YouTube mix check\n"
-            f"{result['youtube_advice']}"
-        )
+        if japanese:
+            message = (
+                f"ファイル: {result['name']}\n"
+                f"長さ: {minutes:02d}:{seconds:02d}\n"
+                f"統合LUFS: {result['lufs_i']:.1f}\n"
+                f"サンプルピーク: {result['peak_db']:.1f} dBFS\n\n"
+                f"推定True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
+                f"ステレオ相関: {result['stereo_correlation']:+.2f}\n\n"
+                f"モノラル確認: {self.format_stereo_check(result)}\n\n"
+                "YouTube再生の想定\n"
+                f"ゲイン: {result['youtube_gain_db']:+.1f} dB\n"
+                f"音量: {result['youtube_percent']:.0f}%\n\n"
+                f"YouTube確認: {readiness}\n\n"
+                "YouTubeミックス確認\n"
+                f"{result['youtube_advice']}"
+            )
+        else:
+            message = (
+                f"File: {result['name']}\n"
+                f"Duration: {minutes:02d}:{seconds:02d}\n"
+                f"Integrated LUFS: {result['lufs_i']:.1f}\n"
+                f"Sample Peak: {result['peak_db']:.1f} dBFS\n\n"
+                f"Estimated True Peak: {result['true_peak_db']:.1f} dBTP\n\n"
+                f"Stereo Correlation: {result['stereo_correlation']:+.2f}\n\n"
+                f"Mono Check: {self.format_stereo_check(result)}\n\n"
+                "YouTube playback estimate\n"
+                f"Gain: {result['youtube_gain_db']:+.1f} dB\n"
+                f"Volume: {result['youtube_percent']:.0f}%\n\n"
+                f"YouTube Check: {readiness}\n\n"
+                "YouTube mix check\n"
+                f"{result['youtube_advice']}"
+            )
 
         self.set_status("WAV analysis complete", "WAV解析が完了しました")
         print(message.replace("\n", " | "))
-        QMessageBox.information(self, "WAV Analysis", message)
+        QMessageBox.information(
+            self,
+            "WAV解析" if japanese else "WAV Analysis",
+            message,
+        )
 
     def analyze_candidate_wavs(self):
         japanese = self.current_language == "ja"
