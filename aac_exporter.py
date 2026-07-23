@@ -7,6 +7,29 @@ import tempfile
 from ffmpeg_tools import find_ffmpeg
 
 
+def aac_support_error():
+    """Return a user-facing error when FFmpeg cannot encode AAC."""
+    ffmpeg = find_ffmpeg()
+    if ffmpeg is None:
+        return "FFmpeg was not found. Install FFmpeg and restart SAM."
+
+    try:
+        result = subprocess.run(
+            [ffmpeg, "-hide_banner", "-encoders"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return f"FFmpeg could not be checked: {error}"
+
+    if result.returncode != 0 or " aac " not in result.stdout:
+        return "This FFmpeg build does not include the AAC encoder."
+
+    return None
+
+
 def export_aac_preview(
     source_path,
     destination_path,

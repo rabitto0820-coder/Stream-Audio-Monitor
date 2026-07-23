@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
 )
 
 from audio_state import audio_state
-from aac_exporter import export_aac_preview
+from aac_exporter import aac_support_error, export_aac_preview
 from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
 from opus_exporter import (
     export_opus_delta, export_opus_preview, export_youtube_ab_previews,
@@ -836,19 +836,26 @@ class MainWindow(QMainWindow):
             )
 
     def check_opus_support_at_startup(self):
-        """Warn early when a SAM installation cannot create real Opus previews."""
-        error = opus_support_error()
-        if error:
-            print(f"Opus support: UNAVAILABLE - {error}")
+        """Warn early when codec previews are unavailable in a SAM install."""
+        opus_error = opus_support_error()
+        aac_error = aac_support_error()
+        errors = []
+        if opus_error:
+            errors.append(f"Opus: {opus_error}")
+        if aac_error:
+            errors.append(f"AAC: {aac_error}")
+
+        if errors:
+            message = "\n".join(errors)
+            print(f"Codec support: UNAVAILABLE - {message}")
             QMessageBox.warning(
                 self,
-                "Opus Setup Check",
-                "Real Opus preview and Opus export are unavailable.\n\n"
-                + error,
+                "Codec Setup Check",
+                "Some codec previews or exports are unavailable.\n\n" + message,
             )
             return
 
-        print("Opus support: FFmpeg and libopus ready.")
+        print("Codec support: FFmpeg, Opus, and AAC ready.")
 
     def start_audio(self):
         if not self.input_devices or not self.output_devices:
