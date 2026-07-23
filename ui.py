@@ -431,6 +431,12 @@ class MainWindow(QMainWindow):
         self.analyze_candidate_folder_button.setText(
             "候補フォルダを比較" if japanese else "Analyze Folder"
         )
+        self.analysis_label.setText(
+            "WAV解析" if japanese else "WAV Analysis"
+        )
+        self.export_label.setText(
+            "プレビュー書き出し" if japanese else "Preview Exports"
+        )
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
         self.export_delta_button.setText("Export Opus Delta")
@@ -575,11 +581,21 @@ class MainWindow(QMainWindow):
         device_row.addWidget(self.stop_button)
         layout.addLayout(device_row)
 
+        analysis_row = QHBoxLayout()
+        self.analysis_label = QLabel("WAV Analysis")
+        self.analysis_label.setStyleSheet("font-weight: bold;")
+        analysis_row.addWidget(self.analysis_label)
+        analysis_row.addWidget(self.analyze_wav_button)
+        analysis_row.addWidget(self.analyze_candidates_button)
+        analysis_row.addWidget(self.analyze_candidate_folder_button)
+        analysis_row.addWidget(self.compare_wav_button)
+        analysis_row.addStretch()
+        layout.addLayout(analysis_row)
+
         export_row = QHBoxLayout()
-        export_row.addWidget(self.analyze_wav_button)
-        export_row.addWidget(self.analyze_candidates_button)
-        export_row.addWidget(self.analyze_candidate_folder_button)
-        export_row.addWidget(self.compare_wav_button)
+        self.export_label = QLabel("Preview Exports")
+        self.export_label.setStyleSheet("font-weight: bold;")
+        export_row.addWidget(self.export_label)
         export_row.addWidget(self.export_opus_button)
         export_row.addWidget(self.export_delta_button)
         export_row.addWidget(self.export_aac_button)
