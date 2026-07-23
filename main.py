@@ -1,8 +1,12 @@
+import os
 import sys
+import traceback
+from datetime import datetime
+from pathlib import Path
 
 import sounddevice as sd
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from audio import callback, configure_audio
 from check_devices import validate_audio_settings
@@ -10,6 +14,50 @@ from ui import MainWindow
 
 
 stream = None
+
+
+def handle_unexpected_error(error_type, error, error_traceback):
+    """Create a report that testers can send after an unexpected crash."""
+    if issubclass(error_type, KeyboardInterrupt):
+        sys.__excepthook__(error_type, error, error_traceback)
+        return
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    report_text = (
+        "Stream Audio Monitor crash report\n"
+        "Error code: SAM-E-UNEXPECTED\n"
+        f"Time: {datetime.now().isoformat(timespec='seconds')}\n\n"
+        + "".join(traceback.format_exception(error_type, error, error_traceback))
+    )
+    print(report_text)
+
+    report_path = None
+    try:
+        local_data = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+        report_folder = local_data / "Stream Audio Monitor" / "logs"
+        report_folder.mkdir(parents=True, exist_ok=True)
+        report_path = report_folder / f"sam_crash_{timestamp}.txt"
+        report_path.write_text(report_text, encoding="utf-8")
+    except OSError as write_error:
+        print(f"Could not write crash report: {write_error}")
+
+    message = (
+        "予期しないエラーが発生しました。\n"
+        "An unexpected error occurred.\n\n"
+        "エラーコード / Error code: SAM-E-UNEXPECTED\n\n"
+        "このコードとクラッシュレポートを開発者へ送ってください。\n"
+        "Please send this code and the crash report file to the developer."
+    )
+    if report_path:
+        message += f"\n\nCrash report:\n{report_path}"
+
+    try:
+        QMessageBox.critical(None, "Stream Audio Monitor Error", message)
+    except Exception:
+        pass
+
+
+sys.excepthook = handle_unexpected_error
 
 
 def start_stream(
@@ -101,6 +149,9 @@ print("======================================")
 print("Version 1.2")
 
 app = QApplication(sys.argv)
+
+if "--test-crash" in sys.argv:
+    raise RuntimeError("Intentional SAM crash test requested")
 
 window = MainWindow(
     start_stream,
