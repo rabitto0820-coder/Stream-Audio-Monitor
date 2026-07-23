@@ -1,9 +1,10 @@
 """Create an audible AAC encode/decode preview WAV using FFmpeg."""
 
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
+
+from ffmpeg_tools import find_ffmpeg
 
 
 def export_aac_preview(
@@ -13,7 +14,7 @@ def export_aac_preview(
     playback_gain_db=0.0,
 ):
     """Create a 24-bit AAC preview WAV with optional playback gain."""
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg is None:
         raise RuntimeError("FFmpeg was not found. Install FFmpeg and restart.")
 

@@ -1,14 +1,15 @@
 """Create an audible Opus encode/decode preview WAV using FFmpeg."""
 
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
+
+from ffmpeg_tools import find_ffmpeg
 
 
 def opus_support_error():
     """Return a user-facing error when FFmpeg cannot encode with libopus."""
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg is None:
         return "FFmpeg was not found. Install FFmpeg and restart SAM."
 
@@ -36,7 +37,7 @@ def export_opus_preview(
     playback_gain_db=0.0,
 ):
     """Create a 24-bit Opus preview WAV with optional playback gain."""
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg is None:
         raise RuntimeError("FFmpeg was not found. Install FFmpeg and restart.")
 
@@ -97,7 +98,7 @@ def export_youtube_ab_previews(
     playback_gain_db=0.0,
 ):
     """Create matching Opus-only and YouTube-volume preview WAV files."""
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg is None:
         raise RuntimeError("FFmpeg was not found. Install FFmpeg and restart.")
 
@@ -144,7 +145,7 @@ def export_opus_delta(
     delta_gain_db=6.0,
 ):
     """Export only the audible difference between a WAV and its Opus preview."""
-    ffmpeg = shutil.which("ffmpeg")
+    ffmpeg = find_ffmpeg()
     if ffmpeg is None:
         raise RuntimeError("FFmpeg was not found. Install FFmpeg and restart.")
 
