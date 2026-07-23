@@ -437,6 +437,9 @@ class MainWindow(QMainWindow):
         self.export_label.setText(
             "プレビュー書き出し" if japanese else "Preview Exports"
         )
+        self.youtube_export_label.setText(
+            "YouTube書き出し" if japanese else "YouTube Exports"
+        )
         self.compare_wav_button.setText(texts["compare"])
         self.export_opus_button.setText(texts["opus_export"])
         self.export_delta_button.setText("Export Opus Delta")
@@ -599,11 +602,18 @@ class MainWindow(QMainWindow):
         export_row.addWidget(self.export_opus_button)
         export_row.addWidget(self.export_delta_button)
         export_row.addWidget(self.export_aac_button)
-        export_row.addWidget(self.export_youtube_ab_button)
-        export_row.addWidget(self.export_codec_pack_button)
         export_row.addWidget(self.youtube_volume_export_checkbox)
         export_row.addStretch()
         layout.addLayout(export_row)
+
+        youtube_export_row = QHBoxLayout()
+        self.youtube_export_label = QLabel("YouTube Exports")
+        self.youtube_export_label.setStyleSheet("font-weight: bold;")
+        youtube_export_row.addWidget(self.youtube_export_label)
+        youtube_export_row.addWidget(self.export_youtube_ab_button)
+        youtube_export_row.addWidget(self.export_codec_pack_button)
+        youtube_export_row.addStretch()
+        layout.addLayout(youtube_export_row)
 
         preview_row = QHBoxLayout()
         preview_row.addWidget(self.youtube_checkbox)
