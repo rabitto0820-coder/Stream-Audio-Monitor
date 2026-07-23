@@ -17,6 +17,7 @@ from aac_exporter import export_aac_preview
 from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
 from opus_exporter import (
     export_opus_delta, export_opus_preview, export_youtube_ab_previews,
+    opus_support_error,
 )
 from preview_pack import export_codec_pack
 from settings import load_settings, save_settings
@@ -189,6 +190,7 @@ class MainWindow(QMainWindow):
         self.timer.timeout.connect(self.update_gui)
         self.timer.start(16)
 
+        QTimer.singleShot(0, self.check_opus_support_at_startup)
         QTimer.singleShot(500, self.start_audio)
 
     def configure_tooltips(self):
@@ -833,6 +835,21 @@ class MainWindow(QMainWindow):
                 self.buffer_values.index(saved["blocksize"])
             )
 
+    def check_opus_support_at_startup(self):
+        """Warn early when a SAM installation cannot create real Opus previews."""
+        error = opus_support_error()
+        if error:
+            print(f"Opus support: UNAVAILABLE - {error}")
+            QMessageBox.warning(
+                self,
+                "Opus Setup Check",
+                "Real Opus preview and Opus export are unavailable.\n\n"
+                + error,
+            )
+            return
+
+        print("Opus support: FFmpeg and libopus ready.")
+
     def start_audio(self):
         if not self.input_devices or not self.output_devices:
             self.set_status(
@@ -1106,6 +1123,11 @@ class MainWindow(QMainWindow):
             )
             == QMessageBox.StandardButton.Yes
         )
+        if measure_opus_impact:
+            error = opus_support_error()
+            if error:
+                QMessageBox.warning(self, "Opus Impact", error)
+                return
 
         japanese = self.current_language == "ja"
         self.set_status(
