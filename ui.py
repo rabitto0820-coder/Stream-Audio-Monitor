@@ -41,6 +41,9 @@ class MainWindow(QMainWindow):
         self.saved_settings = load_settings() or {}
         self.last_candidate_report = ""
         self.codec_focus_enabled = False
+        self.developer_mode = self.saved_settings.get(
+            "preview_settings", {}
+        ).get("developer_mode", False)
         self.current_language = self.saved_settings.get(
             "preview_settings", {}
         ).get("language", "ja")
@@ -68,10 +71,13 @@ class MainWindow(QMainWindow):
         self.title_label.setStyleSheet("font-size: 22pt; font-weight: bold;")
         self.language_button = QPushButton()
         self.language_button.clicked.connect(self.toggle_language)
+        self.developer_mode_button = QPushButton()
+        self.developer_mode_button.clicked.connect(self.toggle_developer_mode)
 
         title_row = QHBoxLayout()
         title_row.addStretch()
         title_row.addWidget(self.title_label, 1)
+        title_row.addWidget(self.developer_mode_button)
         title_row.addWidget(self.language_button)
         layout.addLayout(title_row)
         layout.addWidget(self.create_settings_panel())
@@ -185,6 +191,7 @@ class MainWindow(QMainWindow):
 
         self.create_meters(layout)
 
+        self.set_developer_mode(self.developer_mode)
         self.restore_preview_settings()
 
         self.timer = QTimer(self)
@@ -325,6 +332,7 @@ class MainWindow(QMainWindow):
         )
 
         hover_targets = (
+            self.developer_mode_button,
             self.input_box,
             self.output_box,
             self.rate_box,
@@ -388,6 +396,10 @@ class MainWindow(QMainWindow):
         self.apply_language()
         self.save_current_settings()
 
+    def toggle_developer_mode(self):
+        self.set_developer_mode(not self.developer_mode)
+        self.save_current_settings()
+
     def apply_language(self):
         japanese = self.current_language == "ja"
 
@@ -445,6 +457,14 @@ class MainWindow(QMainWindow):
 
         self.title_label.setText(texts["title"])
         self.language_button.setText(texts["language"])
+        mode_text = "開発者" if japanese else "Developer"
+        mode_state = "ON" if self.developer_mode else "OFF"
+        self.developer_mode_button.setText(f"{mode_text}: {mode_state}")
+        self.developer_mode_button.setToolTip(
+            "WAV解析や書き出しなど、開発・確認用の操作を表示します。"
+            if japanese else
+            "Show development and checking controls such as WAV analysis and exports."
+        )
         self.start_button.setText(texts["start"])
         self.stop_button.setText(texts["stop"])
         self.refresh_devices_button.setText(
@@ -630,6 +650,12 @@ class MainWindow(QMainWindow):
         device_tools_row.addStretch()
         layout.addLayout(device_tools_row)
 
+        self.developer_panel = QFrame()
+        self.developer_panel.setFrameShape(QFrame.Shape.StyledPanel)
+        developer_layout = QVBoxLayout(self.developer_panel)
+        developer_layout.setContentsMargins(8, 8, 8, 8)
+        developer_layout.setSpacing(8)
+
         analysis_row = QHBoxLayout()
         self.analysis_label = QLabel("WAV Analysis")
         self.analysis_label.setStyleSheet("font-weight: bold;")
@@ -639,7 +665,7 @@ class MainWindow(QMainWindow):
         analysis_row.addWidget(self.analyze_candidate_folder_button)
         analysis_row.addWidget(self.compare_wav_button)
         analysis_row.addStretch()
-        layout.addLayout(analysis_row)
+        developer_layout.addLayout(analysis_row)
 
         export_row = QHBoxLayout()
         self.export_label = QLabel("Preview Exports")
@@ -650,7 +676,7 @@ class MainWindow(QMainWindow):
         export_row.addWidget(self.export_aac_button)
         export_row.addWidget(self.youtube_volume_export_checkbox)
         export_row.addStretch()
-        layout.addLayout(export_row)
+        developer_layout.addLayout(export_row)
 
         youtube_export_row = QHBoxLayout()
         self.youtube_export_label = QLabel("YouTube Exports")
@@ -659,7 +685,8 @@ class MainWindow(QMainWindow):
         youtube_export_row.addWidget(self.export_youtube_ab_button)
         youtube_export_row.addWidget(self.export_codec_pack_button)
         youtube_export_row.addStretch()
-        layout.addLayout(youtube_export_row)
+        developer_layout.addLayout(youtube_export_row)
+        layout.addWidget(self.developer_panel)
 
         preview_row = QHBoxLayout()
         preview_row.addWidget(self.youtube_checkbox)
@@ -1195,6 +1222,7 @@ class MainWindow(QMainWindow):
             saved.get("codec_delta_monitor", False)
         )
         self.set_codec_focus(saved.get("codec_focus", False))
+        self.set_developer_mode(saved.get("developer_mode", False))
         self.apply_language()
 
         geometry = saved.get("window_geometry")
@@ -1224,6 +1252,7 @@ class MainWindow(QMainWindow):
             "aac_preview": self.aac_checkbox.isChecked(),
             "codec_delta_monitor": self.codec_delta_checkbox.isChecked(),
             "codec_focus": self.codec_focus_enabled,
+            "developer_mode": self.developer_mode,
             "mono_preview": self.mono_checkbox.isChecked(),
             "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
@@ -2163,6 +2192,19 @@ class MainWindow(QMainWindow):
         else:
             self.codec_focus_button.setText("Codec Focus: OFF")
             self.codec_focus_button.setStyleSheet("")
+
+    def set_developer_mode(self, enabled):
+        self.developer_mode = bool(enabled)
+        self.developer_panel.setVisible(self.developer_mode)
+
+        if self.developer_mode:
+            self.developer_mode_button.setStyleSheet(
+                "background: #1f5637; color: #d4ffdf; font-weight: bold;"
+            )
+        else:
+            self.developer_mode_button.setStyleSheet("")
+
+        self.apply_language()
 
     def toggle_mono_preview(self, enabled):
         import audio
