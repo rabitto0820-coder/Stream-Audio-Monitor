@@ -8,7 +8,7 @@ from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame,
     QFileDialog, QGridLayout, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
-    QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea,
+    QLineEdit, QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea,
     QVBoxLayout, QWidget,
 )
 
@@ -44,6 +44,9 @@ class MainWindow(QMainWindow):
         self.developer_mode = self.saved_settings.get(
             "preview_settings", {}
         ).get("developer_mode", False)
+        self.last_file_tools_output_folder = self.saved_settings.get(
+            "preview_settings", {}
+        ).get("file_tools_output_folder", "")
         self.current_language = self.saved_settings.get(
             "preview_settings", {}
         ).get("language", "ja")
@@ -220,6 +223,9 @@ class MainWindow(QMainWindow):
         self.system_check_button.setToolTip(
             "現在の音声設定とコーデック対応状況を確認・コピーします。"
         )
+        self.file_tools_button.setToolTip(
+            "WAVの解析とプレビュー書き出しを、元ファイルと保存先を指定して行います。"
+        )
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
         )
@@ -342,6 +348,7 @@ class MainWindow(QMainWindow):
             self.refresh_devices_button,
             self.routing_help_button,
             self.system_check_button,
+            self.file_tools_button,
             self.clear_clip_button,
             self.reset_lufs_button,
             self.youtube_preset_button,
@@ -476,6 +483,9 @@ class MainWindow(QMainWindow):
         self.system_check_button.setText(
             "システム確認" if japanese else "System Check"
         )
+        self.file_tools_button.setText(
+            "ファイルツール" if japanese else "File Tools"
+        )
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
         self.analyze_candidate_folder_button.setText(
@@ -582,6 +592,7 @@ class MainWindow(QMainWindow):
         self.refresh_devices_button = QPushButton("Refresh Devices")
         self.routing_help_button = QPushButton("Routing Help")
         self.system_check_button = QPushButton("System Check")
+        self.file_tools_button = QPushButton("File Tools")
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.analyze_candidate_folder_button = QPushButton("Analyze Folder")
@@ -647,6 +658,7 @@ class MainWindow(QMainWindow):
         device_tools_row.addWidget(self.refresh_devices_button)
         device_tools_row.addWidget(self.routing_help_button)
         device_tools_row.addWidget(self.system_check_button)
+        device_tools_row.addWidget(self.file_tools_button)
         device_tools_row.addStretch()
         layout.addLayout(device_tools_row)
 
@@ -746,6 +758,7 @@ class MainWindow(QMainWindow):
         self.refresh_devices_button.clicked.connect(self.refresh_devices)
         self.routing_help_button.clicked.connect(self.show_routing_guide)
         self.system_check_button.clicked.connect(self.show_system_check)
+        self.file_tools_button.clicked.connect(self.show_file_tools)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.analyze_candidates_button.clicked.connect(
             self.analyze_candidate_wavs
@@ -1072,6 +1085,224 @@ class MainWindow(QMainWindow):
             "システム確認をコピーしました",
         )
 
+    def show_file_tools(self):
+        """Queue offline analysis and exports from one compact dialog."""
+        japanese = self.current_language == "ja"
+        dialog = QDialog(self)
+        dialog.setWindowTitle("ファイルツール" if japanese else "File Tools")
+        dialog.resize(760, 420)
+        layout = QVBoxLayout(dialog)
+
+        guide = QLabel(
+            "元WAVと保存先を選び、実行したい処理を複数選択してからOKを押してください。"
+            if japanese else
+            "Choose a source WAV and output folder, select one or more actions, then press OK."
+        )
+        guide.setWordWrap(True)
+        layout.addWidget(guide)
+
+        paths = QGridLayout()
+        source_label = QLabel("元WAV" if japanese else "Source WAV")
+        source_edit = QLineEdit()
+        source_edit.setReadOnly(True)
+        source_button = QPushButton("選択" if japanese else "Browse")
+        destination_label = QLabel("保存先" if japanese else "Output folder")
+        destination_edit = QLineEdit()
+        destination_edit.setReadOnly(True)
+        destination_edit.setText(self.last_file_tools_output_folder)
+        destination_button = QPushButton("選択" if japanese else "Browse")
+        paths.addWidget(source_label, 0, 0)
+        paths.addWidget(source_edit, 0, 1)
+        paths.addWidget(source_button, 0, 2)
+        paths.addWidget(destination_label, 1, 0)
+        paths.addWidget(destination_edit, 1, 1)
+        paths.addWidget(destination_button, 1, 2)
+        layout.addLayout(paths)
+
+        def choose_source():
+            path, _ = QFileDialog.getOpenFileName(
+                dialog,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
+            if path:
+                source_edit.setText(path)
+
+        def choose_destination():
+            folder = QFileDialog.getExistingDirectory(
+                dialog,
+                "保存先フォルダを選択" if japanese else "Select output folder",
+                destination_edit.text(),
+            )
+            if folder:
+                destination_edit.setText(folder)
+                self.last_file_tools_output_folder = folder
+                self.save_current_settings()
+
+        def source_path():
+            path = source_edit.text().strip()
+            if Path(path).is_file():
+                return path
+            QMessageBox.warning(
+                dialog,
+                "ファイルツール" if japanese else "File Tools",
+                "元WAVを選択してください。"
+                if japanese else "Select a source WAV file first.",
+            )
+            return None
+
+        def output_folder():
+            folder = destination_edit.text().strip()
+            if Path(folder).is_dir():
+                return Path(folder)
+            QMessageBox.warning(
+                dialog,
+                "ファイルツール" if japanese else "File Tools",
+                "保存先フォルダを選択してください。"
+                if japanese else "Select an output folder first.",
+            )
+            return None
+
+        actions = QGridLayout()
+        analyze_button = QPushButton("解析結果を表示" if japanese else "Show Analysis")
+        opus_button = QPushButton("Opusを書き出す" if japanese else "Export Opus")
+        aac_button = QPushButton("AACを書き出す" if japanese else "Export AAC")
+        delta_button = QPushButton("Opus差分を書き出す" if japanese else "Export Opus Delta")
+        ab_button = QPushButton("YouTube A/Bを書き出す" if japanese else "Export YouTube A/B")
+        pack_button = QPushButton("コーデックパックを書き出す" if japanese else "Export Codec Pack")
+        action_buttons = (
+            analyze_button,
+            opus_button,
+            aac_button,
+            delta_button,
+            ab_button,
+            pack_button,
+        )
+        for button in action_buttons:
+            button.setCheckable(True)
+            button.setStyleSheet(
+                "QPushButton:checked {"
+                "background: #1f5637; color: #d4ffdf; font-weight: bold;"
+                "}"
+            )
+
+        actions.addWidget(analyze_button, 0, 0)
+        actions.addWidget(opus_button, 0, 1)
+        actions.addWidget(aac_button, 0, 2)
+        actions.addWidget(delta_button, 1, 0)
+        actions.addWidget(ab_button, 1, 1)
+        actions.addWidget(pack_button, 1, 2)
+        layout.addLayout(actions)
+
+        source_button.clicked.connect(choose_source)
+        destination_button.clicked.connect(choose_destination)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok
+            | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText(
+            "OK（選択した処理を実行）" if japanese else "OK (Run selected actions)"
+        )
+
+        def run_selected_actions():
+            path = source_path()
+            selected_exports = any(
+                button.isChecked() for button in action_buttons[1:]
+            )
+            folder = output_folder() if selected_exports else None
+            if not path or (selected_exports and folder is None):
+                return
+
+            selected = [button for button in action_buttons if button.isChecked()]
+            if not selected:
+                QMessageBox.information(
+                    dialog,
+                    "ファイルツール" if japanese else "File Tools",
+                    "実行する処理を1つ以上選択してください。"
+                    if japanese else "Select at least one action to run.",
+                )
+                return
+
+            dialog.accept()
+            results = []
+            source = Path(path)
+            if analyze_button.isChecked():
+                result = self.analyze_wav_file(path, show_result=False)
+                results.append(("WAV解析", result))
+            if opus_button.isChecked():
+                destination = folder / f"{source.stem}_opus_{self.current_opus_bitrate()}k.wav"
+                result = self.export_opus_wav(
+                    path, str(destination), show_result=False
+                )
+                results.append(("Opus WAV", result))
+            if aac_button.isChecked():
+                destination = folder / f"{source.stem}_aac_128k.wav"
+                result = self.export_aac_wav(
+                    path, str(destination), show_result=False
+                )
+                results.append(("AAC WAV", result))
+            if delta_button.isChecked():
+                destination = folder / f"{source.stem}_opus_{self.current_opus_bitrate()}k_delta.wav"
+                result = self.export_opus_delta_wav(
+                    path, str(destination), show_result=False
+                )
+                results.append(("Opus差分WAV", result))
+            if ab_button.isChecked():
+                result = self.export_youtube_ab_wavs(
+                    path, str(folder), show_result=False
+                )
+                results.append(("YouTube A/B", result))
+            if pack_button.isChecked():
+                result = self.export_codec_pack_wavs(
+                    path, str(folder), show_result=False
+                )
+                results.append(("コーデックパック", result))
+
+            self.show_file_tools_report(path, folder, results)
+
+        buttons.accepted.connect(run_selected_actions)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def show_file_tools_report(self, source_path, destination_folder, results):
+        japanese = self.current_language == "ja"
+        title = "ファイルツールの実行結果" if japanese else "File Tools Results"
+        lines = [
+            f"元WAV: {source_path}" if japanese else f"Source WAV: {source_path}",
+        ]
+        if destination_folder:
+            lines.append(
+                f"保存先: {destination_folder}"
+                if japanese else f"Output folder: {destination_folder}"
+            )
+        lines.append("")
+        lines.append("実行結果:" if japanese else "Results:")
+        for name, result in results:
+            status = "完了" if result else "失敗"
+            if not japanese:
+                status = "Completed" if result else "Failed"
+            lines.append(f"• {name}: {status}")
+            if result:
+                lines.extend(
+                    f"  {line}" for line in result.splitlines() if line
+                )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.resize(680, 300)
+        layout = QVBoxLayout(dialog)
+        report = QPlainTextEdit()
+        report.setReadOnly(True)
+        report.setPlainText("\n".join(lines))
+        layout.addWidget(report)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
     def check_opus_support_at_startup(self):
         """Warn early when codec previews are unavailable in a SAM install."""
         opus_error = opus_support_error()
@@ -1253,6 +1484,7 @@ class MainWindow(QMainWindow):
             "codec_delta_monitor": self.codec_delta_checkbox.isChecked(),
             "codec_focus": self.codec_focus_enabled,
             "developer_mode": self.developer_mode,
+            "file_tools_output_folder": self.last_file_tools_output_folder,
             "mono_preview": self.mono_checkbox.isChecked(),
             "bass_mono_preview": self.bass_mono_checkbox.isChecked(),
             "phone_speaker_preview": self.phone_speaker_checkbox.isChecked(),
@@ -1282,14 +1514,15 @@ class MainWindow(QMainWindow):
         self.save_current_settings()
         super().closeEvent(event)
 
-    def analyze_wav_file(self):
+    def analyze_wav_file(self, path=None, show_result=True):
         japanese = self.current_language == "ja"
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "WAVを解析" if japanese else "Analyze WAV file",
-            "",
-            "WAV files (*.wav)",
-        )
+        if path is None:
+            path, _ = QFileDialog.getOpenFileName(
+                self,
+                "WAVを解析" if japanese else "Analyze WAV file",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not path:
             return
@@ -1299,11 +1532,12 @@ class MainWindow(QMainWindow):
             result = analyze_wav(path, self.youtube_target_lufs)
         except (OSError, ValueError) as error:
             self.set_status("WAV analysis error", "WAV解析エラー")
-            QMessageBox.warning(
-                self,
-                "WAV解析" if japanese else "WAV Analysis",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "WAV解析" if japanese else "WAV Analysis",
+                    str(error),
+                )
             return
 
         minutes, seconds = divmod(int(result["duration_seconds"]), 60)
@@ -1343,11 +1577,13 @@ class MainWindow(QMainWindow):
 
         self.set_status("WAV analysis complete", "WAV解析が完了しました")
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "WAV解析" if japanese else "WAV Analysis",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "WAV解析" if japanese else "WAV Analysis",
+                message,
+            )
+        return message
 
     def analyze_candidate_wavs(self):
         japanese = self.current_language == "ja"
@@ -1743,14 +1979,15 @@ class MainWindow(QMainWindow):
         print(message.replace("\n", " | "))
         QMessageBox.information(self, "WAV Comparison", message)
 
-    def export_opus_wav(self):
+    def export_opus_wav(self, source_path=None, destination_path=None, show_result=True):
         japanese = self.current_language == "ja"
-        source_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "元のWAVを選択" if japanese else "Select source WAV",
-            "",
-            "WAV files (*.wav)",
-        )
+        if source_path is None:
+            source_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not source_path:
             return
@@ -1758,12 +1995,13 @@ class MainWindow(QMainWindow):
         default_path = source_path.rsplit(".", 1)[0]
         default_path += f"_opus_{self.current_opus_bitrate()}k.wav"
 
-        destination_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "OpusプレビューWAVを保存" if japanese else "Save Opus preview WAV",
-            default_path,
-            "WAV files (*.wav)",
-        )
+        if destination_path is None:
+            destination_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "OpusプレビューWAVを保存" if japanese else "Save Opus preview WAV",
+                default_path,
+                "WAV files (*.wav)",
+            )
 
         if not destination_path:
             return
@@ -1785,11 +2023,12 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Opus export error", "Opus書き出しエラー")
-            QMessageBox.warning(
-                self,
-                "Opus書き出し" if japanese else "Opus Export",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "Opus書き出し" if japanese else "Opus Export",
+                    str(error),
+                )
             return
 
         self.set_status("Opus preview exported", "Opusプレビューを書き出しました")
@@ -1808,32 +2047,38 @@ class MainWindow(QMainWindow):
                 f"File: {output_path}"
             )
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "Opus書き出し" if japanese else "Opus Export",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "Opus書き出し" if japanese else "Opus Export",
+                message,
+            )
+        return message
 
-    def export_opus_delta_wav(self):
+    def export_opus_delta_wav(
+        self, source_path=None, destination_path=None, show_result=True
+    ):
         japanese = self.current_language == "ja"
-        source_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "元のWAVを選択" if japanese else "Select source WAV",
-            "",
-            "WAV files (*.wav)",
-        )
+        if source_path is None:
+            source_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not source_path:
             return
 
         default_path = source_path.rsplit(".", 1)[0]
         default_path += f"_opus_{self.current_opus_bitrate()}k_delta.wav"
-        destination_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Opus差分WAVを保存" if japanese else "Save Opus Delta WAV",
-            default_path,
-            "WAV files (*.wav)",
-        )
+        if destination_path is None:
+            destination_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Opus差分WAVを保存" if japanese else "Save Opus Delta WAV",
+                default_path,
+                "WAV files (*.wav)",
+            )
 
         if not destination_path:
             return
@@ -1865,11 +2110,12 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Opus Delta export error", "Opus差分の書き出しエラー")
-            QMessageBox.warning(
-                self,
-                "Opus差分の書き出し" if japanese else "Opus Delta Export",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "Opus差分の書き出し" if japanese else "Opus Delta Export",
+                    str(error),
+                )
             return
 
         self.set_status("Opus Delta exported", "Opus差分を書き出しました")
@@ -1890,31 +2136,35 @@ class MainWindow(QMainWindow):
                 f"File: {output_path}"
             )
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "Opus差分の書き出し" if japanese else "Opus Delta Export",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "Opus差分の書き出し" if japanese else "Opus Delta Export",
+                message,
+            )
+        return message
 
-    def export_aac_wav(self):
+    def export_aac_wav(self, source_path=None, destination_path=None, show_result=True):
         japanese = self.current_language == "ja"
-        source_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "元のWAVを選択" if japanese else "Select source WAV",
-            "",
-            "WAV files (*.wav)",
-        )
+        if source_path is None:
+            source_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not source_path:
             return
 
         default_path = source_path.rsplit(".", 1)[0] + "_aac_128k.wav"
-        destination_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "AACプレビューWAVを保存" if japanese else "Save AAC preview WAV",
-            default_path,
-            "WAV files (*.wav)",
-        )
+        if destination_path is None:
+            destination_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "AACプレビューWAVを保存" if japanese else "Save AAC preview WAV",
+                default_path,
+                "WAV files (*.wav)",
+            )
 
         if not destination_path:
             return
@@ -1935,11 +2185,12 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("AAC export error", "AAC書き出しエラー")
-            QMessageBox.warning(
-                self,
-                "AAC書き出し" if japanese else "AAC Export",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "AAC書き出し" if japanese else "AAC Export",
+                    str(error),
+                )
             return
 
         self.set_status("AAC preview exported", "AACプレビューを書き出しました")
@@ -1958,29 +2209,35 @@ class MainWindow(QMainWindow):
                 f"File: {output_path}"
             )
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "AAC書き出し" if japanese else "AAC Export",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "AAC書き出し" if japanese else "AAC Export",
+                message,
+            )
+        return message
 
-    def export_youtube_ab_wavs(self):
+    def export_youtube_ab_wavs(
+        self, source_path=None, destination_folder=None, show_result=True
+    ):
         japanese = self.current_language == "ja"
-        source_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "元のWAVを選択" if japanese else "Select source WAV",
-            "",
-            "WAV files (*.wav)",
-        )
+        if source_path is None:
+            source_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not source_path:
             return
 
-        destination_folder = QFileDialog.getExistingDirectory(
-            self,
-            "YouTube A/Bファイルの保存フォルダを選択"
-            if japanese else "Select output folder for YouTube A/B files",
-        )
+        if destination_folder is None:
+            destination_folder = QFileDialog.getExistingDirectory(
+                self,
+                "YouTube A/Bファイルの保存フォルダを選択"
+                if japanese else "Select output folder for YouTube A/B files",
+            )
 
         if not destination_folder:
             return
@@ -2001,11 +2258,12 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("YouTube A/B export error", "YouTube A/B書き出しエラー")
-            QMessageBox.warning(
-                self,
-                "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
+                    str(error),
+                )
             return
 
         self.set_status(
@@ -2033,29 +2291,35 @@ class MainWindow(QMainWindow):
                 f"{output_paths['youtube']}"
             )
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "YouTube A/B書き出し" if japanese else "YouTube A/B Export",
+                message,
+            )
+        return message
 
-    def export_codec_pack_wavs(self):
+    def export_codec_pack_wavs(
+        self, source_path=None, destination_folder=None, show_result=True
+    ):
         japanese = self.current_language == "ja"
-        source_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "元のWAVを選択" if japanese else "Select source WAV",
-            "",
-            "WAV files (*.wav)",
-        )
+        if source_path is None:
+            source_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "元のWAVを選択" if japanese else "Select source WAV",
+                "",
+                "WAV files (*.wav)",
+            )
 
         if not source_path:
             return
 
-        destination_folder = QFileDialog.getExistingDirectory(
-            self,
-            "コーデックプレビューパックの保存フォルダを選択"
-            if japanese else "Select output folder for codec preview pack",
-        )
+        if destination_folder is None:
+            destination_folder = QFileDialog.getExistingDirectory(
+                self,
+                "コーデックプレビューパックの保存フォルダを選択"
+                if japanese else "Select output folder for codec preview pack",
+            )
 
         if not destination_folder:
             return
@@ -2079,11 +2343,12 @@ class MainWindow(QMainWindow):
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.set_status("Codec pack export error", "コーデックパック書き出しエラー")
-            QMessageBox.warning(
-                self,
-                "コーデックパック書き出し" if japanese else "Codec Pack Export",
-                str(error),
-            )
+            if show_result:
+                QMessageBox.warning(
+                    self,
+                    "コーデックパック書き出し" if japanese else "Codec Pack Export",
+                    str(error),
+                )
             return
 
         self.set_status(
@@ -2107,11 +2372,13 @@ class MainWindow(QMainWindow):
                 f"Report\n{paths['report']}"
             )
         print(message.replace("\n", " | "))
-        QMessageBox.information(
-            self,
-            "コーデックパック書き出し" if japanese else "Codec Pack Export",
-            message,
-        )
+        if show_result:
+            QMessageBox.information(
+                self,
+                "コーデックパック書き出し" if japanese else "Codec Pack Export",
+                message,
+            )
+        return message
 
     def toggle_opus(self, enabled):
         import audio
