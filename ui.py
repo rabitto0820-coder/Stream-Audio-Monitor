@@ -6,9 +6,10 @@ import sounddevice as sd
 
 from PyQt6.QtCore import QByteArray, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QFrame, QFileDialog, QGridLayout, QHBoxLayout,
-    QInputDialog, QLabel, QMainWindow, QMessageBox, QProgressDialog,
-    QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QFileDialog,
+    QGridLayout, QHBoxLayout, QInputDialog, QLabel, QMainWindow,
+    QMessageBox, QPlainTextEdit, QProgressDialog, QPushButton, QScrollArea,
+    QVBoxLayout, QWidget,
 )
 
 from audio_state import audio_state
@@ -1231,17 +1232,29 @@ class MainWindow(QMainWindow):
         )
         self.last_candidate_report = message
         print(message.replace("\n", " | "))
-        dialog = QMessageBox(self)
+        self.show_candidate_report(title, message)
+
+    def show_candidate_report(self, title, message):
+        """Display long candidate comparisons without clipping the results."""
+        dialog = QDialog(self)
         dialog.setWindowTitle(title)
-        dialog.setText(message)
-        save_button = dialog.addButton(
+        dialog.resize(820, 620)
+
+        layout = QVBoxLayout(dialog)
+        report_text = QPlainTextEdit()
+        report_text.setReadOnly(True)
+        report_text.setPlainText(message)
+        layout.addWidget(report_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        save_button = buttons.addButton(
             "Save Candidate Report",
-            QMessageBox.ButtonRole.ActionRole,
+            QDialogButtonBox.ButtonRole.ActionRole,
         )
-        dialog.addButton(QMessageBox.StandardButton.Close)
+        save_button.clicked.connect(self.save_candidate_report)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
         dialog.exec()
-        if dialog.clickedButton() is save_button:
-            self.save_candidate_report()
 
     def save_candidate_report(self):
         if not self.last_candidate_report:
