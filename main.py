@@ -6,7 +6,9 @@ from pathlib import Path
 
 import sounddevice as sd
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import (
+    QApplication, QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout,
+)
 
 from audio import callback, configure_audio
 from check_devices import validate_audio_settings
@@ -52,7 +54,36 @@ def handle_unexpected_error(error_type, error, error_traceback):
         message += f"\n\nCrash report:\n{report_path}"
 
     try:
-        QMessageBox.critical(None, "Stream Audio Monitor Error", message)
+        dialog = QDialog()
+        dialog.setWindowTitle("Stream Audio Monitor Error")
+        dialog.resize(760, 360)
+        dialog.setStyleSheet(
+            "QDialog { background: #111111; }"
+            "QPlainTextEdit {"
+            "background: #111111; color: #f2f2f2;"
+            "border: 2px solid #e04b4b; padding: 10px;"
+            "font-weight: bold;"
+            "}"
+        )
+        layout = QVBoxLayout(dialog)
+        error_text = QPlainTextEdit()
+        error_text.setReadOnly(True)
+        error_text.setPlainText("⚠ ERROR / エラー\n\n" + message)
+        layout.addWidget(error_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            "コピー / Copy",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: QApplication.clipboard().setText(
+                error_text.toPlainText()
+            )
+        )
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
     except Exception:
         pass
 
