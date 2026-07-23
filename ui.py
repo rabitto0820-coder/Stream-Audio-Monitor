@@ -207,6 +207,9 @@ class MainWindow(QMainWindow):
         self.refresh_devices_button.setToolTip(
             "USBオーディオ機器やVB-CABLEを抜き差しした後、デバイス一覧を更新します。"
         )
+        self.routing_help_button.setToolTip(
+            "ブラウザ、SAM、DAW、オーディオインターフェースの音の通り道を表示します。"
+        )
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
         )
@@ -322,6 +325,7 @@ class MainWindow(QMainWindow):
             self.start_button,
             self.stop_button,
             self.refresh_devices_button,
+            self.routing_help_button,
             self.clear_clip_button,
             self.reset_lufs_button,
             self.youtube_preset_button,
@@ -437,6 +441,9 @@ class MainWindow(QMainWindow):
         self.refresh_devices_button.setText(
             "デバイス更新" if japanese else "Refresh Devices"
         )
+        self.routing_help_button.setText(
+            "音の経路" if japanese else "Routing Help"
+        )
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
         self.analyze_candidate_folder_button.setText(
@@ -536,6 +543,7 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Start")
         self.stop_button = QPushButton("Stop")
         self.refresh_devices_button = QPushButton("Refresh Devices")
+        self.routing_help_button = QPushButton("Routing Help")
         self.analyze_wav_button = QPushButton("Analyze WAV")
         self.analyze_candidates_button = QPushButton("Analyze Candidates")
         self.analyze_candidate_folder_button = QPushButton("Analyze Folder")
@@ -598,6 +606,7 @@ class MainWindow(QMainWindow):
 
         device_tools_row = QHBoxLayout()
         device_tools_row.addWidget(self.refresh_devices_button)
+        device_tools_row.addWidget(self.routing_help_button)
         device_tools_row.addStretch()
         layout.addLayout(device_tools_row)
 
@@ -687,6 +696,7 @@ class MainWindow(QMainWindow):
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
         self.refresh_devices_button.clicked.connect(self.refresh_devices)
+        self.routing_help_button.clicked.connect(self.show_routing_guide)
         self.analyze_wav_button.clicked.connect(self.analyze_wav_file)
         self.analyze_candidates_button.clicked.connect(
             self.analyze_candidate_wavs
@@ -884,6 +894,60 @@ class MainWindow(QMainWindow):
         self.set_status(
             "Audio device list refreshed",
             "音声デバイス一覧を更新しました",
+        )
+
+    def show_routing_guide(self):
+        japanese = self.current_language == "ja"
+        if japanese:
+            title = "SAM 音の経路"
+            message = (
+                "ブラウザの音\n"
+                "Windows出力 → 仮想ケーブル入力 → SAM入力 → "
+                "SAM処理 → オーディオインターフェース出力 → スピーカー\n\n"
+                "DAWの音\n"
+                "通常は DAW → オーディオインターフェース → スピーカーです。\n"
+                "この経路ではSAMを通りません。DAWをSAMで確認するには、"
+                "DAWの出力を仮想ケーブルへ送ります。その場合は遅延が増えます。"
+            )
+        else:
+            title = "SAM Audio Routing"
+            message = (
+                "Browser audio\n"
+                "Windows output → virtual cable input → SAM input → "
+                "SAM processing → audio interface output → speakers\n\n"
+                "DAW audio\n"
+                "Normally: DAW → audio interface → speakers.\n"
+                "This route does not use SAM. Route the DAW output to a virtual "
+                "cable to monitor it through SAM; this adds latency."
+            )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.resize(720, 390)
+        layout = QVBoxLayout(dialog)
+
+        guide_text = QPlainTextEdit()
+        guide_text.setReadOnly(True)
+        guide_text.setPlainText(message)
+        layout.addWidget(guide_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            "Copy",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: self.copy_routing_guide(message)
+        )
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def copy_routing_guide(self, message):
+        QApplication.clipboard().setText(message)
+        self.set_status(
+            "Routing guide copied",
+            "音の経路をコピーしました",
         )
 
     def check_opus_support_at_startup(self):
