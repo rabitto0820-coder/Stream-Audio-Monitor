@@ -40,6 +40,10 @@ class MainWindow(QMainWindow):
         self.output_devices = []
         self.saved_settings = load_settings() or {}
         self.last_candidate_report = ""
+        self.debug_events = []
+        self.last_debug_status = ""
+        self.last_support_error_code = ""
+        self.last_support_error_detail = ""
         self.codec_focus_enabled = False
         self.developer_mode = self.saved_settings.get(
             "preview_settings", {}
@@ -76,11 +80,14 @@ class MainWindow(QMainWindow):
         self.language_button.clicked.connect(self.toggle_language)
         self.developer_mode_button = QPushButton()
         self.developer_mode_button.clicked.connect(self.toggle_developer_mode)
+        self.debug_log_button = QPushButton()
+        self.debug_log_button.clicked.connect(self.show_debug_log)
 
         title_row = QHBoxLayout()
         title_row.addStretch()
         title_row.addWidget(self.title_label, 1)
         title_row.addWidget(self.developer_mode_button)
+        title_row.addWidget(self.debug_log_button)
         title_row.addWidget(self.language_button)
         layout.addLayout(title_row)
         layout.addWidget(self.create_settings_panel())
@@ -145,6 +152,15 @@ class MainWindow(QMainWindow):
             """
         )
 
+        self.issue_indicator = QLabel()
+        self.issue_indicator.setStyleSheet(
+            "background: #6e2020; color: #ffe0e0; padding: 6px; border-radius: 4px;"
+        )
+        self.issue_indicator.setVisible(False)
+        self.copy_support_button = QPushButton()
+        self.copy_support_button.setVisible(False)
+        self.copy_support_button.clicked.connect(self.copy_support_info)
+
         self.clear_clip_button = QPushButton("Clear Clip")
         self.clear_clip_button.clicked.connect(self.clear_clip)
 
@@ -186,7 +202,9 @@ class MainWindow(QMainWindow):
         status_row.addWidget(self.podcast_preset_button, 1, 3)
         status_row.addWidget(self.broadcast_preset_button, 1, 4)
         status_row.addWidget(self.youtube_readiness_indicator, 1, 6, 1, 3)
-        status_row.addWidget(self.hover_help_indicator, 2, 0, 1, 9)
+        status_row.addWidget(self.issue_indicator, 2, 0, 1, 3)
+        status_row.addWidget(self.copy_support_button, 2, 3)
+        status_row.addWidget(self.hover_help_indicator, 3, 0, 1, 9)
 
         layout.addLayout(status_row)
         self.configure_tooltips()
@@ -225,6 +243,9 @@ class MainWindow(QMainWindow):
         )
         self.file_tools_button.setToolTip(
             "WAVの解析とプレビュー書き出しを、元ファイルと保存先を指定して行います。"
+        )
+        self.copy_support_button.setToolTip(
+            "エラーコード、音声設定、直近の操作履歴をコピーして報告できます。"
         )
         self.clear_clip_button.setToolTip(
             "クリップ検出回数だけを 0 に戻します。"
@@ -339,6 +360,8 @@ class MainWindow(QMainWindow):
 
         hover_targets = (
             self.developer_mode_button,
+            self.debug_log_button,
+            self.copy_support_button,
             self.input_box,
             self.output_box,
             self.rate_box,
@@ -467,10 +490,26 @@ class MainWindow(QMainWindow):
         mode_text = "開発者" if japanese else "Developer"
         mode_state = "ON" if self.developer_mode else "OFF"
         self.developer_mode_button.setText(f"{mode_text}: {mode_state}")
+        self.debug_log_button.setText(
+            "デバッグログ" if japanese else "Debug Log"
+        )
+        self.copy_support_button.setText(
+            "サポート情報をコピー" if japanese else "Copy Support Info"
+        )
+        if self.last_support_error_code:
+            issue_label = "問題" if japanese else "Issue"
+            self.issue_indicator.setText(
+                f"{issue_label}: {self.last_support_error_code}"
+            )
         self.developer_mode_button.setToolTip(
             "WAV解析・書き出し・詳細メーターなど、開発・確認用の表示を切り替えます。"
             if japanese else
             "Show development displays such as WAV analysis, exports, and detailed meters."
+        )
+        self.debug_log_button.setToolTip(
+            "操作履歴、音声設定、コーデック状態を表示・コピーします。"
+            if japanese else
+            "Show and copy the operation history, audio settings, and codec state."
         )
         self.start_button.setText(texts["start"])
         self.stop_button.setText(texts["stop"])
@@ -1299,6 +1338,12 @@ class MainWindow(QMainWindow):
         if errors:
             message = "\n".join(errors)
             print(f"Codec support: UNAVAILABLE - {message}")
+            self.set_status(
+                "Codec setup error",
+                "コーデック設定エラー",
+                error_code="SAM-E-CODEC-SETUP",
+                error_detail=message,
+            )
             QMessageBox.warning(
                 self,
                 "Codec Setup Check",
@@ -1366,11 +1411,150 @@ class MainWindow(QMainWindow):
                 "background: #8b1e1e; color: white; font-weight: bold;"
             )
 
-    def set_status(self, english, japanese):
+    def add_debug_event(self, message):
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.debug_events.append(f"[{timestamp}] {message}")
+        self.debug_events = self.debug_events[-200:]
+
+    def show_debug_log(self):
+        japanese = self.current_language == "ja"
+        title = "デバッグログ" if japanese else "Debug Log"
+        input_name = self.input_box.currentText() or "(not selected)"
+        output_name = self.output_box.currentText() or "(not selected)"
+        rate = self.rate_values[self.rate_box.currentIndex()]
+        buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
+        header = (
+            "SAM デバッグ情報\n\n"
+            f"入力: {input_name}\n"
+            f"出力: {output_name}\n"
+            f"サンプルレート: {rate} Hz\n"
+            f"バッファ: {buffer_size} samples\n"
+            f"コーデック: {audio_state.codec_preview_mode}\n"
+            f"開発者モード: {'ON' if self.developer_mode else 'OFF'}\n"
+            f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "操作履歴\n"
+            if japanese else
+            "SAM Debug Information\n\n"
+            f"Input: {input_name}\n"
+            f"Output: {output_name}\n"
+            f"Sample rate: {rate} Hz\n"
+            f"Buffer: {buffer_size} samples\n"
+            f"Codec: {audio_state.codec_preview_mode}\n"
+            f"Developer mode: {'ON' if self.developer_mode else 'OFF'}\n"
+            f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "Operation history\n"
+        )
+        message = header + ("\n".join(self.debug_events) or "(no events)")
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.resize(820, 560)
+        layout = QVBoxLayout(dialog)
+        log_text = QPlainTextEdit()
+        log_text.setReadOnly(True)
+        log_text.setPlainText(message)
+        layout.addWidget(log_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            "コピー" if japanese else "Copy",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        clear_button = buttons.addButton(
+            "履歴を消去" if japanese else "Clear history",
+            QDialogButtonBox.ButtonRole.ActionRole,
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: QApplication.clipboard().setText(
+                log_text.toPlainText()
+            )
+        )
+
+        def clear_history():
+            self.debug_events.clear()
+            log_text.setPlainText(
+                header + ("(履歴はありません)" if japanese else "(no events)")
+            )
+
+        clear_button.clicked.connect(clear_history)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def set_support_error(self, code, detail=""):
+        self.last_support_error_code = code
+        self.last_support_error_detail = detail
+        label = "問題" if self.current_language == "ja" else "Issue"
+        self.issue_indicator.setText(f"{label}: {code}")
+        self.issue_indicator.setVisible(True)
+        self.copy_support_button.setVisible(True)
+        self.add_debug_event(f"Issue: {code} - {detail}".rstrip(" - "))
+
+    def clear_support_error(self):
+        self.last_support_error_code = ""
+        self.last_support_error_detail = ""
+        self.issue_indicator.setVisible(False)
+        self.copy_support_button.setVisible(False)
+
+    def copy_support_info(self):
+        japanese = self.current_language == "ja"
+        input_name = self.input_box.currentText() or "(not selected)"
+        output_name = self.output_box.currentText() or "(not selected)"
+        rate = self.rate_values[self.rate_box.currentIndex()]
+        buffer_size = self.buffer_values[self.buffer_box.currentIndex()]
+        message = (
+            "SAM サポート情報\n\n"
+            f"エラーコード: {self.last_support_error_code}\n"
+            f"内容: {self.last_support_error_detail or '(詳細なし)'}\n\n"
+            f"入力: {input_name}\n"
+            f"出力: {output_name}\n"
+            f"サンプルレート: {rate} Hz\n"
+            f"バッファ: {buffer_size} samples\n"
+            f"コーデック: {audio_state.codec_preview_mode}\n"
+            f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "直近の操作履歴\n"
+            if japanese else
+            "SAM Support Information\n\n"
+            f"Error code: {self.last_support_error_code}\n"
+            f"Details: {self.last_support_error_detail or '(no details)'}\n\n"
+            f"Input: {input_name}\n"
+            f"Output: {output_name}\n"
+            f"Sample rate: {rate} Hz\n"
+            f"Buffer: {buffer_size} samples\n"
+            f"Codec: {audio_state.codec_preview_mode}\n"
+            f"FFmpeg: {describe_ffmpeg_source()}\n\n"
+            "Recent operation history\n"
+        )
+        message += "\n".join(self.debug_events[-20:]) or "(no events)"
+        QApplication.clipboard().setText(message)
+        self.add_debug_event("Support information copied")
+
+    def set_status(self, english, japanese, error_code=None, error_detail=""):
         if self.current_language == "ja":
             self.status.setText(f"状態: {japanese}")
         else:
             self.status.setText(f"Status: {english}")
+
+        if english != self.last_debug_status:
+            self.last_debug_status = english
+            self.add_debug_event(f"Status: {english}")
+
+        default_codes = {
+            "No usable audio device found": "SAM-E-AUDIO-DEVICE",
+            "Audio error": "SAM-E-AUDIO-START",
+            "WAV analysis error": "SAM-E-WAV-ANALYSIS",
+            "Opus export error": "SAM-E-OPUS-EXPORT",
+            "Opus Delta export error": "SAM-E-DELTA-EXPORT",
+            "AAC export error": "SAM-E-AAC-EXPORT",
+            "YouTube A/B export error": "SAM-E-YT-AB-EXPORT",
+            "Codec pack export error": "SAM-E-CODEC-PACK",
+            "YouTube calibration error": "SAM-E-YT-CALIBRATION",
+        }
+        code = error_code or default_codes.get(english)
+        if code:
+            self.set_support_error(code, error_detail)
+        elif english == "Running":
+            self.clear_support_error()
 
     def restore_preview_settings(self):
         """Restore monitor choices saved when the app was last closed."""
@@ -1514,7 +1698,9 @@ class MainWindow(QMainWindow):
             self.set_status("Analyzing WAV...", "WAVを解析中...")
             result = analyze_wav(path, self.youtube_target_lufs)
         except (OSError, ValueError) as error:
-            self.set_status("WAV analysis error", "WAV解析エラー")
+            self.set_status(
+                "WAV analysis error", "WAV解析エラー", error_detail=str(error)
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2005,7 +2191,9 @@ class MainWindow(QMainWindow):
                 playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("Opus export error", "Opus書き出しエラー")
+            self.set_status(
+                "Opus export error", "Opus書き出しエラー", error_detail=str(error)
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2092,7 +2280,11 @@ class MainWindow(QMainWindow):
                 delta_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("Opus Delta export error", "Opus差分の書き出しエラー")
+            self.set_status(
+                "Opus Delta export error",
+                "Opus差分の書き出しエラー",
+                error_detail=str(error),
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2167,7 +2359,9 @@ class MainWindow(QMainWindow):
                 playback_gain_db=playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("AAC export error", "AAC書き出しエラー")
+            self.set_status(
+                "AAC export error", "AAC書き出しエラー", error_detail=str(error)
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2240,7 +2434,11 @@ class MainWindow(QMainWindow):
                 playback_gain_db,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("YouTube A/B export error", "YouTube A/B書き出しエラー")
+            self.set_status(
+                "YouTube A/B export error",
+                "YouTube A/B書き出しエラー",
+                error_detail=str(error),
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2325,7 +2523,11 @@ class MainWindow(QMainWindow):
                 youtube_target_lufs=self.youtube_target_lufs,
             )
         except (OSError, RuntimeError, ValueError) as error:
-            self.set_status("Codec pack export error", "コーデックパック書き出しエラー")
+            self.set_status(
+                "Codec pack export error",
+                "コーデックパック書き出しエラー",
+                error_detail=str(error),
+            )
             if show_result:
                 QMessageBox.warning(
                     self,
@@ -2445,6 +2647,7 @@ class MainWindow(QMainWindow):
     def set_developer_mode(self, enabled):
         self.developer_mode = bool(enabled)
         self.update_detail_meter_visibility()
+        self.debug_log_button.setVisible(self.developer_mode)
 
         if self.developer_mode:
             self.developer_mode_button.setStyleSheet(
@@ -2635,7 +2838,11 @@ class MainWindow(QMainWindow):
             )
             analysis = analyze_wav(source_path)
         except (OSError, ValueError) as error:
-            self.set_status("YouTube calibration error", "YouTube調整エラー")
+            self.set_status(
+                "YouTube calibration error",
+                "YouTube調整エラー",
+                error_detail=str(error),
+            )
             QMessageBox.warning(self, "YouTube Calibration", str(error))
             return
 
