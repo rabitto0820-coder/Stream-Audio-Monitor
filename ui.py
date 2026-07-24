@@ -543,7 +543,11 @@ class MainWindow(QMainWindow):
             if japanese else
             "Show and copy the operation history, audio settings, and codec state."
         )
-        self.start_button.setText("ENGAGE")
+        self.start_button.setText(
+            "MONITORING\nACTIVE"
+            if self.audio_engine_started and not self.bypass_checkbox.isChecked()
+            else "ENGAGE"
+        )
         self.stop_button.setText(
             "DISENGAGE" if not japanese else "DISENGAGE / バイパス"
         )
@@ -1572,6 +1576,7 @@ class MainWindow(QMainWindow):
 
     def set_audio_running_state(self, running):
         if running:
+            self.start_button.setText("MONITORING\nACTIVE")
             self.start_button.setStyleSheet(
                 "background: #1b715f; color: white; font-weight: bold;"
             )
@@ -1579,6 +1584,7 @@ class MainWindow(QMainWindow):
                 "background: #4a2525; color: #ffd6d6; font-weight: bold;"
             )
         else:
+            self.start_button.setText("ENGAGE")
             self.start_button.setStyleSheet("")
             self.stop_button.setStyleSheet(
                 "background: #6b2424; color: #ffd6d6; font-weight: bold;"
