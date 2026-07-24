@@ -46,6 +46,8 @@ class MainWindow(QMainWindow):
         self.last_support_error_code = ""
         self.last_support_error_detail = ""
         self.last_runtime_error_count = 0
+        self.audio_engine_started = False
+        self.active_audio_config = None
         self.codec_focus_enabled = False
         self.developer_mode = self.saved_settings.get(
             "preview_settings", {}
@@ -84,12 +86,14 @@ class MainWindow(QMainWindow):
         self.developer_mode_button.clicked.connect(self.toggle_developer_mode)
         self.debug_log_button = QPushButton()
         self.debug_log_button.clicked.connect(self.show_debug_log)
+        self.debug_log_placeholder = QWidget()
 
         title_row = QHBoxLayout()
         title_row.addStretch()
         title_row.addWidget(self.title_label, 1)
         title_row.addWidget(self.developer_mode_button)
         title_row.addWidget(self.debug_log_button)
+        title_row.addWidget(self.debug_log_placeholder)
         title_row.addWidget(self.language_button)
         layout.addLayout(title_row)
         layout.addWidget(self.create_settings_panel())
@@ -233,7 +237,9 @@ class MainWindow(QMainWindow):
             "小さいほど遅延は減りますが、音が途切れる場合があります。"
         )
         self.start_button.setToolTip("音声入力・モニター・メーターを開始します。")
-        self.stop_button.setToolTip("音声エンジンを完全に停止します。")
+        self.stop_button.setToolTip(
+            "SAMの処理を外し、元の入力音をそのまま再生します。"
+        )
         self.refresh_devices_button.setToolTip(
             "USBオーディオ機器やVB-CABLEを抜き差しした後、デバイス一覧を更新します。"
         )
@@ -447,7 +453,10 @@ class MainWindow(QMainWindow):
             "aac_export": "AAC WAVを書き出す" if japanese else "Export AAC WAV",
             "ab_export": "YouTube A/Bを書き出す" if japanese else "Export YouTube A/B",
             "pack_export": "コーデックパックを書き出す" if japanese else "Export Codec Pack",
-            "youtube_volume": "YouTube音量を反映" if japanese else "Apply YouTube Volume",
+            "youtube_volume": (
+                "書き出しにYouTubeノーマライズを反映"
+                if japanese else "Apply YouTube normalization to exports"
+            ),
             "opus_preview": "YouTube Opusプレビュー" if japanese else "YouTube Opus Preview",
             "aac_preview": "AACプレビュー" if japanese else "AAC Preview",
             "mono": "モノラルプレビュー" if japanese else "Mono Preview",
@@ -495,6 +504,9 @@ class MainWindow(QMainWindow):
         self.debug_log_button.setText(
             "デバッグログ" if japanese else "Debug Log"
         )
+        self.debug_log_placeholder.setFixedWidth(
+            self.debug_log_button.sizeHint().width()
+        )
         self.copy_support_button.setText(
             "サポート情報をコピー" if japanese else "Copy Support Info"
         )
@@ -525,7 +537,7 @@ class MainWindow(QMainWindow):
             "システム確認" if japanese else "System Check"
         )
         self.file_tools_button.setText(
-            "ファイルツール" if japanese else "File Tools"
+            "解析 / 書き出し" if japanese else "Analyze / Export"
         )
         self.analyze_wav_button.setText(texts["analyze"])
         self.analyze_candidates_button.setText(texts["candidates"])
@@ -667,6 +679,7 @@ class MainWindow(QMainWindow):
         self.youtube_normalize_checkbox = QCheckBox(
             "YouTube Playback Normalize"
         )
+        self.opus_label = QLabel("Opus")
         self.youtube_target_label = QLabel("YT Ref: -14.0 LUFS")
         self.calibrate_youtube_button = QPushButton("Calibrate YouTube")
         self.reset_youtube_target_button = QPushButton("Reset YT Ref")
@@ -691,6 +704,8 @@ class MainWindow(QMainWindow):
         device_row.addWidget(self.rate_box)
         device_row.addWidget(self.buffer_label)
         device_row.addWidget(self.buffer_box)
+        device_row.addWidget(self.opus_label)
+        device_row.addWidget(self.opus_bitrate_box)
         device_row.addWidget(self.start_button)
         device_row.addWidget(self.stop_button)
         layout.addLayout(device_row)
@@ -714,9 +729,6 @@ class MainWindow(QMainWindow):
         preview_row.addWidget(self.mono_checkbox)
         preview_row.addWidget(self.bass_mono_checkbox)
         preview_row.addWidget(self.phone_speaker_checkbox)
-        self.opus_label = QLabel("Opus")
-        preview_row.addWidget(self.opus_label)
-        preview_row.addWidget(self.opus_bitrate_box)
         preview_row.addStretch()
         layout.addLayout(preview_row)
 
@@ -1099,7 +1111,9 @@ class MainWindow(QMainWindow):
         """Queue offline analysis and exports from one compact dialog."""
         japanese = self.current_language == "ja"
         dialog = QDialog(self)
-        dialog.setWindowTitle("ファイルツール" if japanese else "File Tools")
+        dialog.setWindowTitle(
+            "解析 / 書き出し" if japanese else "Analyze / Export"
+        )
         dialog.resize(760, 420)
         layout = QVBoxLayout(dialog)
 
@@ -1130,8 +1144,8 @@ class MainWindow(QMainWindow):
         layout.addLayout(paths)
 
         apply_youtube_volume = QCheckBox(
-            "書き出しにYouTube音量を反映"
-            if japanese else "Apply YouTube volume to exports"
+            "書き出しにYouTubeノーマライズを反映"
+            if japanese else "Apply YouTube normalization to exports"
         )
         apply_youtube_volume.setChecked(
             self.youtube_volume_export_checkbox.isChecked()
@@ -1383,6 +1397,18 @@ class MainWindow(QMainWindow):
             self.buffer_box.currentIndex()
         ]
 
+        audio_config = (
+            input_device,
+            output_device,
+            samplerate,
+            blocksize,
+        )
+        if self.audio_engine_started and audio_config == self.active_audio_config:
+            self.bypass_checkbox.setChecked(False)
+            self.set_status("Running", "動作中")
+            self.set_audio_running_state(True)
+            return
+
         self.save_current_settings()
 
         started = self.start_stream(
@@ -1393,9 +1419,14 @@ class MainWindow(QMainWindow):
         )
 
         if started:
+            self.audio_engine_started = True
+            self.active_audio_config = audio_config
+            self.bypass_checkbox.setChecked(False)
             self.set_status("Running", "動作中")
             self.set_audio_running_state(True)
         else:
+            self.audio_engine_started = False
+            self.active_audio_config = None
             error_detail = getattr(self.start_stream, "last_error", "")
             self.set_status(
                 "Audio error",
@@ -1405,8 +1436,13 @@ class MainWindow(QMainWindow):
             self.set_audio_running_state(False)
 
     def stop_audio(self):
-        self.stop_stream()
-        self.set_status("Stopped", "停止しました")
+        if not self.audio_engine_started:
+            self.set_status("Stopped", "停止しました")
+            self.set_audio_running_state(False)
+            return
+
+        self.bypass_checkbox.setChecked(True)
+        self.set_status("Bypass raw input", "SAM停止: 元の入力音を再生中")
         self.set_audio_running_state(False)
 
     def set_audio_running_state(self, running):
@@ -2664,9 +2700,14 @@ class MainWindow(QMainWindow):
             self.codec_focus_button.setStyleSheet("")
 
     def set_developer_mode(self, enabled):
+        import audio
+
         self.developer_mode = bool(enabled)
+        audio.set_live_loudness_measurement_enabled(self.developer_mode)
         self.update_detail_meter_visibility()
         self.debug_log_button.setVisible(self.developer_mode)
+        self.debug_log_placeholder.setVisible(not self.developer_mode)
+        self.update_production_control_visibility()
 
         if self.developer_mode:
             self.developer_mode_button.setStyleSheet(
@@ -2676,6 +2717,47 @@ class MainWindow(QMainWindow):
             self.developer_mode_button.setStyleSheet("")
 
         self.apply_language()
+
+    def update_production_control_visibility(self):
+        """Keep advanced processing available only in Developer mode."""
+        show_developer_controls = self.developer_mode
+        developer_only_widgets = (
+            self.lufs_time_indicator,
+            self.normalizer_gain_indicator,
+            self.youtube_gain_indicator,
+            self.reset_lufs_button,
+            self.youtube_preset_button,
+            self.browser_sample_button,
+            self.podcast_preset_button,
+            self.broadcast_preset_button,
+            self.youtube_readiness_indicator,
+            self.mute_monitor_checkbox,
+            self.bypass_checkbox,
+            self.limiter_checkbox,
+            self.ceiling_label,
+            self.limiter_ceiling_box,
+            self.normalizer_checkbox,
+            self.youtube_normalize_checkbox,
+            self.target_label,
+            self.normalizer_target_box,
+            self.skin_label,
+            self.theme_box,
+            self.youtube_target_label,
+            self.calibrate_youtube_button,
+            self.reset_youtube_target_button,
+            self.youtube_reference_button,
+        )
+        for widget in developer_only_widgets:
+            widget.setVisible(show_developer_controls)
+
+        if not show_developer_controls:
+            self.limiter_ceiling_box.setCurrentIndex(
+                self.limiter_ceiling_values.index(-1.0)
+            )
+            self.limiter_checkbox.setChecked(True)
+            self.normalizer_checkbox.setChecked(False)
+            self.youtube_normalize_checkbox.setChecked(False)
+            self.mute_monitor_checkbox.setChecked(False)
 
     def update_detail_meter_visibility(self):
         """Keep detailed metering available without crowding production view."""

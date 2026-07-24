@@ -24,6 +24,7 @@ phone_speaker_preview = False
 monitor_muted = False
 bypass_effects = False
 codec_delta_monitor = False
+live_loudness_measurement_enabled = True
 
 sample_rate = 48000
 
@@ -150,6 +151,20 @@ def set_codec_delta_monitor(enabled):
     global codec_delta_monitor
 
     codec_delta_monitor = bool(enabled)
+
+
+def set_live_loudness_measurement_enabled(enabled):
+    """Disable live LUFS work in the lightweight production monitor."""
+    global live_loudness_measurement_enabled
+
+    live_loudness_measurement_enabled = bool(enabled)
+    if not live_loudness_measurement_enabled:
+        audio_state.lufs_m = -70.0
+        audio_state.lufs_s = -70.0
+        audio_state.lufs_i = -70.0
+        audio_state.lufs_measurement_seconds = 0.0
+        audio_state.normalizer_gain_db = 0.0
+        audio_state.youtube_gain_db = 0.0
 
 
 def set_mono_preview(enabled):
@@ -319,12 +334,13 @@ def callback(indata, outdata, frames, time_info, status):
         # Audition only the signal changed by the codec.
         data = (codec_reference - data) * 2.0
 
-    (
-        audio_state.lufs_m,
-        audio_state.lufs_s,
-        audio_state.lufs_i,
-    ) = loudness_meter.process(data)
-    audio_state.lufs_measurement_seconds += frames / sample_rate
+    if live_loudness_measurement_enabled:
+        (
+            audio_state.lufs_m,
+            audio_state.lufs_s,
+            audio_state.lufs_i,
+        ) = loudness_meter.process(data)
+        audio_state.lufs_measurement_seconds += frames / sample_rate
 
     if bypass_effects or delta_mode_active:
         audio_state.youtube_gain_db = 0.0
