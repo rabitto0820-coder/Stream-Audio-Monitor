@@ -67,19 +67,28 @@ class MainWindow(QMainWindow):
         self.youtube_target_lufs = -14.0
 
         self.setWindowTitle("Stream Audio Monitor")
-        self.resize(1100, 1200)
+        self.resize(1480, 960)
+        self.setMinimumSize(1060, 760)
 
-        apply_theme(self, "Studio Dark")
+        apply_theme(self, "Stream Neon")
 
         central = QWidget()
+        central.setObjectName("appShell")
         self.setCentralWidget(central)
 
         layout = QVBoxLayout(central)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 20, 24, 18)
+        layout.setSpacing(14)
 
         self.title_label = QLabel("Stream Audio Monitor")
-        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.title_label.setStyleSheet("font-size: 22pt; font-weight: bold;")
+        self.title_label.setObjectName("productTitle")
+        self.subtitle_label = QLabel("REAL-TIME CODEC PREVIEW & MONITORING")
+        self.subtitle_label.setObjectName("productSubtitle")
+        self.brand_badge = QLabel("SAM")
+        self.brand_badge.setObjectName("brandBadge")
+        self.brand_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.ready_label = QLabel("●  READY\nMonitoring Idle")
+        self.ready_label.setObjectName("readyLabel")
         self.language_button = QPushButton()
         self.language_button.clicked.connect(self.toggle_language)
         self.developer_mode_button = QPushButton()
@@ -88,14 +97,23 @@ class MainWindow(QMainWindow):
         self.debug_log_button.clicked.connect(self.show_debug_log)
         self.debug_log_placeholder = QWidget()
 
-        title_row = QHBoxLayout()
-        title_row.addStretch()
-        title_row.addWidget(self.title_label, 1)
+        header_frame = QFrame()
+        header_frame.setObjectName("appHeader")
+        title_row = QHBoxLayout(header_frame)
+        title_row.setContentsMargins(16, 12, 16, 12)
+        title_row.setSpacing(14)
+        title_row.addWidget(self.brand_badge)
+        title_stack = QVBoxLayout()
+        title_stack.setSpacing(1)
+        title_stack.addWidget(self.title_label)
+        title_stack.addWidget(self.subtitle_label)
+        title_row.addLayout(title_stack, 1)
+        title_row.addWidget(self.ready_label)
         title_row.addWidget(self.developer_mode_button)
         title_row.addWidget(self.debug_log_button)
         title_row.addWidget(self.debug_log_placeholder)
         title_row.addWidget(self.language_button)
-        layout.addLayout(title_row)
+        layout.addWidget(header_frame)
         layout.addWidget(self.create_settings_panel())
 
         status_row = QGridLayout()
@@ -525,8 +543,10 @@ class MainWindow(QMainWindow):
             if japanese else
             "Show and copy the operation history, audio settings, and codec state."
         )
-        self.start_button.setText(texts["start"])
-        self.stop_button.setText(texts["stop"])
+        self.start_button.setText("ENGAGE")
+        self.stop_button.setText(
+            "DISENGAGE" if not japanese else "DISENGAGE / バイパス"
+        )
         self.refresh_devices_button.setText(
             "デバイス更新" if japanese else "Refresh Devices"
         )
@@ -596,6 +616,10 @@ class MainWindow(QMainWindow):
         self.youtube_note_label.setText(texts["youtube_note"])
         self.default_help_text = texts["help"]
         self.hover_help_indicator.setText(self.default_help_text)
+        self.subtitle_label.setText(
+            "REAL-TIME CODEC PREVIEW & MONITORING"
+            if not japanese else "リアルタイム・コーデック・プレビュー"
+        )
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.Enter:
@@ -608,9 +632,10 @@ class MainWindow(QMainWindow):
         return super().eventFilter(watched, event)
 
     def create_settings_panel(self):
-        frame = QFrame()
+        frame = QWidget()
         layout = QVBoxLayout(frame)
-        layout.setSpacing(6)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
 
         self.input_box = QComboBox()
         self.output_box = QComboBox()
@@ -691,86 +716,174 @@ class MainWindow(QMainWindow):
             self.opus_bitrate_values.index(128)
         )
 
-        device_row = QHBoxLayout()
         self.input_label = QLabel("Input")
         self.output_label = QLabel("Output")
         self.rate_label = QLabel("Rate")
         self.buffer_label = QLabel("Buffer")
-        device_row.addWidget(self.input_label)
-        device_row.addWidget(self.input_box, 2)
-        device_row.addWidget(self.output_label)
-        device_row.addWidget(self.output_box, 2)
-        device_row.addWidget(self.rate_label)
-        device_row.addWidget(self.rate_box)
-        device_row.addWidget(self.buffer_label)
-        device_row.addWidget(self.buffer_box)
-        device_row.addWidget(self.opus_label)
-        device_row.addWidget(self.opus_bitrate_box)
-        device_row.addWidget(self.start_button)
-        device_row.addWidget(self.stop_button)
-        layout.addLayout(device_row)
-
-        device_tools_row = QHBoxLayout()
-        device_tools_row.addWidget(self.refresh_devices_button)
-        device_tools_row.addWidget(self.routing_help_button)
-        device_tools_row.addWidget(self.system_check_button)
-        device_tools_row.addWidget(self.file_tools_button)
-        device_tools_row.addStretch()
-        layout.addLayout(device_tools_row)
-
         self.analysis_label = QLabel("WAV Analysis")
         self.export_label = QLabel("Preview Exports")
         self.youtube_export_label = QLabel("YouTube Exports")
-
-        preview_row = QHBoxLayout()
-        preview_row.addWidget(self.youtube_checkbox)
-        preview_row.addWidget(self.aac_checkbox)
-        preview_row.addWidget(self.codec_delta_checkbox)
-        preview_row.addWidget(self.mono_checkbox)
-        preview_row.addWidget(self.bass_mono_checkbox)
-        preview_row.addWidget(self.phone_speaker_checkbox)
-        preview_row.addStretch()
-        layout.addLayout(preview_row)
-
-        monitor_row = QHBoxLayout()
-        monitor_row.addWidget(self.mute_monitor_checkbox)
-        monitor_row.addWidget(self.bypass_checkbox)
-        monitor_row.addWidget(self.codec_focus_button)
-        monitor_row.addWidget(self.reset_codec_difference_button)
         self.monitor_note_label = QLabel(
             "Mute keeps meters running. Bypass plays the raw input."
         )
-        monitor_row.addWidget(self.monitor_note_label)
-        monitor_row.addStretch()
-        layout.addLayout(monitor_row)
-
-        processing_row = QHBoxLayout()
-        processing_row.addWidget(self.limiter_checkbox)
         self.ceiling_label = QLabel("Ceiling")
         self.target_label = QLabel("Target")
         self.skin_label = QLabel("Skin")
-        processing_row.addWidget(self.ceiling_label)
-        processing_row.addWidget(self.limiter_ceiling_box)
-        processing_row.addWidget(self.normalizer_checkbox)
-        processing_row.addWidget(self.youtube_normalize_checkbox)
-        processing_row.addWidget(self.target_label)
-        processing_row.addWidget(self.normalizer_target_box)
-        processing_row.addWidget(self.skin_label)
-        processing_row.addWidget(self.theme_box)
-        processing_row.addStretch()
-        layout.addLayout(processing_row)
-
-        youtube_row = QHBoxLayout()
-        youtube_row.addWidget(self.youtube_target_label)
-        youtube_row.addWidget(self.calibrate_youtube_button)
-        youtube_row.addWidget(self.reset_youtube_target_button)
-        youtube_row.addWidget(self.youtube_reference_button)
         self.youtube_note_label = QLabel(
             "Use the normalized volume % from YouTube Stats for Nerds."
         )
-        youtube_row.addWidget(self.youtube_note_label)
+
+        def make_card(title, accent, description=""):
+            card = QFrame()
+            card.setObjectName(f"{accent}Card")
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(18, 16, 18, 16)
+            card_layout.setSpacing(10)
+            title_label = QLabel(title)
+            title_label.setObjectName("cardTitle")
+            if accent == "purple":
+                title_label.setObjectName("purpleTitle")
+            elif accent == "pink":
+                title_label.setObjectName("pinkTitle")
+            card_layout.addWidget(title_label)
+            if description:
+                description_label = QLabel(description)
+                description_label.setObjectName("cardDescription")
+                description_label.setWordWrap(True)
+                card_layout.addWidget(description_label)
+            return card, card_layout
+
+        cards = QGridLayout()
+        cards.setHorizontalSpacing(16)
+        cards.setVerticalSpacing(16)
+        cards.setColumnStretch(0, 1)
+        cards.setColumnStretch(1, 1)
+        cards.setColumnStretch(2, 1)
+
+        preview_card, preview_layout = make_card(
+            "AAC PREVIEW", "cyan", "AAC圧縮をリアルタイムでシミュレート"
+        )
+        self.aac_checkbox.setObjectName("accentButton")
+        preview_layout.addWidget(self.aac_checkbox)
+        opus_row = QHBoxLayout()
+        opus_row.addWidget(self.opus_label)
+        opus_row.addWidget(self.opus_bitrate_box, 1)
+        preview_layout.addLayout(opus_row)
+        preview_layout.addWidget(self.youtube_checkbox)
+        preview_layout.addStretch()
+        cards.addWidget(preview_card, 0, 0)
+
+        delta_card, delta_layout = make_card(
+            "DELTA MONITOR", "purple",
+            "変化した部分（差分）だけを聴く"
+        )
+        self.codec_delta_checkbox.setObjectName("accentButton")
+        delta_layout.addWidget(self.codec_delta_checkbox)
+        delta_layout.addStretch()
+        cards.addWidget(delta_card, 0, 1)
+
+        tools_card, tools_layout = make_card(
+            "ANALYZE / EXPORT", "pink",
+            "解析・比較・書き出しをまとめて実行"
+        )
+        self.file_tools_button.setObjectName("accentButton")
+        tools_layout.addStretch()
+        tools_layout.addWidget(self.file_tools_button)
+        tools_layout.addStretch()
+        cards.addWidget(tools_card, 0, 2)
+
+        input_card, input_layout = make_card("AUDIO INPUT", "cyan")
+        input_layout.addWidget(self.input_label)
+        input_layout.addWidget(self.input_box)
+        input_options = QGridLayout()
+        input_options.addWidget(self.rate_label, 0, 0)
+        input_options.addWidget(self.buffer_label, 0, 1)
+        input_options.addWidget(self.rate_box, 1, 0)
+        input_options.addWidget(self.buffer_box, 1, 1)
+        input_layout.addLayout(input_options)
+        input_layout.addWidget(self.refresh_devices_button)
+        cards.addWidget(input_card, 1, 0)
+
+        engage_card = QFrame()
+        engage_card.setObjectName("engageCard")
+        engage_layout = QVBoxLayout(engage_card)
+        engage_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        engage_layout.setSpacing(5)
+        self.start_button.setObjectName("engageButton")
+        self.start_button.setFixedSize(300, 300)
+        self.stop_button.setObjectName("secondaryButton")
+        self.stop_button.setMaximumWidth(180)
+        engage_layout.addWidget(
+            self.start_button, 0, Qt.AlignmentFlag.AlignCenter
+        )
+        engage_layout.addWidget(
+            self.stop_button, 0, Qt.AlignmentFlag.AlignCenter
+        )
+        cards.addWidget(engage_card, 1, 1)
+
+        output_card, output_layout = make_card("AUDIO OUTPUT", "cyan")
+        output_layout.addWidget(self.output_label)
+        output_layout.addWidget(self.output_box)
+        output_layout.addWidget(self.routing_help_button)
+        output_layout.addWidget(self.system_check_button)
+        output_layout.addStretch()
+        cards.addWidget(output_card, 1, 2)
+
+        layout.addLayout(cards)
+
+        self.developer_panel = QFrame()
+        self.developer_panel.setObjectName("neonCard")
+        developer_layout = QVBoxLayout(self.developer_panel)
+        developer_layout.setContentsMargins(14, 12, 14, 12)
+        developer_layout.setSpacing(8)
+        developer_title = QLabel("DEVELOPER CONTROLS")
+        developer_title.setObjectName("purpleTitle")
+        developer_layout.addWidget(developer_title)
+
+        preview_row = QHBoxLayout()
+        for widget in (
+            self.mono_checkbox, self.bass_mono_checkbox,
+            self.phone_speaker_checkbox, self.mute_monitor_checkbox,
+            self.bypass_checkbox, self.codec_focus_button,
+            self.reset_codec_difference_button,
+        ):
+            preview_row.addWidget(widget)
+        preview_row.addStretch()
+        developer_layout.addLayout(preview_row)
+
+        processing_row = QHBoxLayout()
+        for widget in (
+            self.limiter_checkbox, self.ceiling_label, self.limiter_ceiling_box,
+            self.normalizer_checkbox, self.youtube_normalize_checkbox,
+            self.target_label, self.normalizer_target_box, self.skin_label,
+            self.theme_box,
+        ):
+            processing_row.addWidget(widget)
+        processing_row.addStretch()
+        developer_layout.addLayout(processing_row)
+
+        youtube_row = QHBoxLayout()
+        for widget in (
+            self.youtube_target_label, self.calibrate_youtube_button,
+            self.reset_youtube_target_button, self.youtube_reference_button,
+            self.monitor_note_label, self.youtube_note_label,
+        ):
+            youtube_row.addWidget(widget)
         youtube_row.addStretch()
-        layout.addLayout(youtube_row)
+        developer_layout.addLayout(youtube_row)
+
+        analysis_row = QHBoxLayout()
+        for widget in (
+            self.analyze_wav_button, self.analyze_candidates_button,
+            self.analyze_candidate_folder_button, self.compare_wav_button,
+            self.export_opus_button, self.export_delta_button,
+            self.export_aac_button, self.export_youtube_ab_button,
+            self.export_codec_pack_button, self.youtube_volume_export_checkbox,
+        ):
+            analysis_row.addWidget(widget)
+        analysis_row.addStretch()
+        developer_layout.addLayout(analysis_row)
+        layout.addWidget(self.developer_panel)
 
         self.start_button.clicked.connect(self.start_audio)
         self.stop_button.clicked.connect(self.stop_audio)
@@ -1448,15 +1561,13 @@ class MainWindow(QMainWindow):
     def set_audio_running_state(self, running):
         if running:
             self.start_button.setStyleSheet(
-                "background: #29a85a; color: white; font-weight: bold;"
+                "background: #1b715f; color: white; font-weight: bold;"
             )
             self.stop_button.setStyleSheet(
                 "background: #4a2525; color: #ffd6d6; font-weight: bold;"
             )
         else:
-            self.start_button.setStyleSheet(
-                "background: #1f5637; color: #d4ffdf; font-weight: bold;"
-            )
+            self.start_button.setStyleSheet("")
             self.stop_button.setStyleSheet(
                 "background: #6b2424; color: #ffd6d6; font-weight: bold;"
             )
@@ -1589,6 +1700,16 @@ class MainWindow(QMainWindow):
         else:
             self.status.setText(f"Status: {english}")
 
+        if english == "Running":
+            self.ready_label.setText("●  ACTIVE\nMonitoring Live")
+            self.ready_label.setStyleSheet("color: #38f29a; font-size: 10pt;")
+        elif "error" in english.lower() or error_code:
+            self.ready_label.setText("●  ERROR\nCheck details")
+            self.ready_label.setStyleSheet("color: #ff628f; font-size: 10pt;")
+        else:
+            self.ready_label.setText("●  READY\nMonitoring Idle")
+            self.ready_label.setStyleSheet("color: #b7c8ef; font-size: 10pt;")
+
         if english != self.last_debug_status:
             self.last_debug_status = english
             self.add_debug_event(f"Status: {english}")
@@ -1623,7 +1744,7 @@ class MainWindow(QMainWindow):
         )
 
         theme = saved.get("theme")
-        if theme in theme_names():
+        if self.developer_mode and theme in theme_names():
             self.theme_box.setCurrentText(theme)
 
         bitrate = saved.get("opus_bitrate")
@@ -2722,6 +2843,7 @@ class MainWindow(QMainWindow):
         """Keep advanced processing available only in Developer mode."""
         show_developer_controls = self.developer_mode
         developer_only_widgets = (
+            self.developer_panel,
             self.clip_indicator,
             self.clear_clip_button,
             self.lufs_time_indicator,
