@@ -835,6 +835,9 @@ class MainWindow(QMainWindow):
             self.change_theme
         )
 
+        # Make the transport state obvious before the first Start click.
+        self.set_audio_running_state(False)
+
         return frame
 
     def create_meters(self, layout):
@@ -1409,13 +1412,17 @@ class MainWindow(QMainWindow):
     def set_audio_running_state(self, running):
         if running:
             self.start_button.setStyleSheet(
-                "background: #1f7a45; color: white; font-weight: bold;"
+                "background: #29a85a; color: white; font-weight: bold;"
             )
-            self.stop_button.setStyleSheet("")
-        else:
-            self.start_button.setStyleSheet("")
             self.stop_button.setStyleSheet(
-                "background: #8b1e1e; color: white; font-weight: bold;"
+                "background: #4a2525; color: #ffd6d6; font-weight: bold;"
+            )
+        else:
+            self.start_button.setStyleSheet(
+                "background: #1f5637; color: #d4ffdf; font-weight: bold;"
+            )
+            self.stop_button.setStyleSheet(
+                "background: #6b2424; color: #ffd6d6; font-weight: bold;"
             )
 
     def add_debug_event(self, message):
