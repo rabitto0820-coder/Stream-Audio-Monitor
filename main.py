@@ -11,10 +11,13 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout,
 )
 
-from app_info import APP_NAME, APP_VERSION, support_environment_text
+from app_info import (
+    APP_NAME, APP_VERSION, saved_audio_setup_text, support_environment_text,
+)
 from audio import callback, configure_audio
 from audio_state import audio_state
 from check_devices import validate_audio_settings
+from settings import load_settings
 from ui import MainWindow
 
 
@@ -28,6 +31,12 @@ def handle_unexpected_error(error_type, error, error_traceback):
         return
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    try:
+        saved_audio_settings = load_settings()
+    except Exception as settings_error:
+        saved_audio_settings = {}
+        print(f"Could not read saved audio settings: {settings_error}")
+
     report_text = (
         f"{APP_NAME} crash report\n"
         f"SAM version: {APP_VERSION}\n"
@@ -35,6 +44,8 @@ def handle_unexpected_error(error_type, error, error_traceback):
         f"Time: {datetime.now().isoformat(timespec='seconds')}\n\n"
         "Environment\n"
         f"{support_environment_text()}\n\n"
+        "Last saved audio setup\n"
+        f"{saved_audio_setup_text(saved_audio_settings)}\n\n"
         + "".join(traceback.format_exception(error_type, error, error_traceback))
     )
     print(report_text)

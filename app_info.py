@@ -19,3 +19,14 @@ def support_environment_text():
         f"sounddevice: {getattr(sd, '__version__', 'unknown')}\n"
         f"Python executable: {sys.executable}"
     )
+
+
+def saved_audio_setup_text(settings):
+    """Return the last saved audio setup without exposing unrelated settings."""
+    settings = settings if isinstance(settings, dict) else {}
+    return (
+        f"Input device: {settings.get('input_device', '(not saved)')}\n"
+        f"Output device: {settings.get('output_device', '(not saved)')}\n"
+        f"Sample rate: {settings.get('samplerate', '(not saved)')}\n"
+        f"Buffer: {settings.get('blocksize', '(not saved)')}"
+    )
