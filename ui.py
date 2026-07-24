@@ -2860,6 +2860,16 @@ class MainWindow(QMainWindow):
     def update_production_control_visibility(self):
         """Keep advanced processing available only in Developer mode."""
         show_developer_controls = self.developer_mode
+        technical_status_widgets = (
+            self.status,
+            self.latency_indicator,
+            self.input_signal_indicator,
+            self.codec_indicator,
+            self.headroom_indicator,
+        )
+        for widget in technical_status_widgets:
+            widget.setVisible(show_developer_controls)
+
         developer_only_widgets = (
             self.developer_panel,
             self.clip_indicator,
