@@ -841,6 +841,10 @@ class MainWindow(QMainWindow):
         output_card, output_layout = make_card("AUDIO OUTPUT", "cyan")
         output_layout.addWidget(self.output_label)
         output_layout.addWidget(self.output_box)
+        self.latency_card_label = QLabel("LATENCY  ~ -- ms")
+        self.latency_card_label.setObjectName("latencyReadout")
+        self.latency_card_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        output_layout.addWidget(self.latency_card_label)
         output_layout.addWidget(self.routing_help_button)
         output_layout.addWidget(self.system_check_button)
         output_layout.addStretch()
@@ -3444,13 +3448,12 @@ class MainWindow(QMainWindow):
         latency_ms = 2000.0 * buffer_size / rate
         codec_active = audio_state.codec_preview_mode not in {"OFF", "BYPASS"}
         if codec_active:
-            self.latency_indicator.setText(
-                f"Base: ~{latency_ms:.0f} ms + codec delay"
-            )
+            latency_text = f"~{latency_ms:.0f} ms + codec"
+            self.latency_indicator.setText(f"Base: {latency_text} delay")
         else:
-            self.latency_indicator.setText(
-                f"Base latency: ~{latency_ms:.0f} ms"
-            )
+            latency_text = f"~{latency_ms:.0f} ms"
+            self.latency_indicator.setText(f"Base latency: {latency_text}")
+        self.latency_card_label.setText(f"LATENCY  {latency_text}")
         self.peak_meter.set_level(audio_state.peak_db)
         self.true_peak_meter.set_level(audio_state.true_peak_db)
         self.rms_meter.set_level(audio_state.rms_db)

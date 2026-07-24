@@ -111,6 +111,16 @@ def apply_theme(widget, name):
         QLabel#pinkTitle {{ color: #ff5792; }}
         QLabel#cardDescription {{ color: #d9e4ff; font-size: 10.5pt; }}
 
+        QLabel#latencyReadout {{
+            color: #43e7ff;
+            background: #061126;
+            border: 1px solid #1d3d70;
+            border-radius: 8px;
+            padding: 9px;
+            font-size: 12pt;
+            font-weight: 700;
+        }}
+
         QLabel {{
             color: {theme["text"]};
             font-size: 12pt;
