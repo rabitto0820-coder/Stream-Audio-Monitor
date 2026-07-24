@@ -625,6 +625,7 @@ class MainWindow(QMainWindow):
             "REAL-TIME CODEC PREVIEW & MONITORING"
             if not japanese else "リアルタイム・コーデック・プレビュー"
         )
+        self.update_opus_preview_label()
 
     def eventFilter(self, watched, event):
         if event.type() == QEvent.Type.Enter:
@@ -931,6 +932,7 @@ class MainWindow(QMainWindow):
         )
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
+        self.youtube_checkbox.toggled.connect(self.update_opus_preview_label)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
         self.aac_checkbox.toggled.connect(self.update_preview_card_states)
         self.codec_delta_checkbox.toggled.connect(self.toggle_codec_delta)
@@ -988,6 +990,7 @@ class MainWindow(QMainWindow):
         # Make the transport state obvious before the first Start click.
         self.set_audio_running_state(False)
         self.update_preview_card_states()
+        self.update_opus_preview_label()
 
         return frame
 
@@ -1008,6 +1011,15 @@ class MainWindow(QMainWindow):
             )
         else:
             self.delta_monitor_card.setStyleSheet("")
+
+    def update_opus_preview_label(self, _enabled=None):
+        """Keep the central production control honest about Opus state."""
+        if self.youtube_checkbox.isChecked():
+            self.engage_opus_label.setText("OPUS PREVIEW  •  ON")
+            self.engage_opus_label.setStyleSheet("color: #4cf6bc;")
+        else:
+            self.engage_opus_label.setText("OPUS PREVIEW  •  OFF")
+            self.engage_opus_label.setStyleSheet("")
 
     def create_meters(self, layout):
         scroll_area = QScrollArea()
