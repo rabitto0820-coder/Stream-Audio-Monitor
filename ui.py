@@ -768,6 +768,7 @@ class MainWindow(QMainWindow):
         preview_card, preview_layout = make_card(
             "AAC PREVIEW", "cyan", "AAC圧縮をリアルタイムでシミュレート"
         )
+        self.aac_preview_card = preview_card
         self.aac_checkbox.setObjectName("accentButton")
         preview_layout.addWidget(self.aac_checkbox)
         preview_layout.addStretch()
@@ -777,6 +778,7 @@ class MainWindow(QMainWindow):
             "DELTA MONITOR", "purple",
             "変化した部分（差分）だけを聴く"
         )
+        self.delta_monitor_card = delta_card
         self.codec_delta_checkbox.setObjectName("accentButton")
         delta_layout.addWidget(self.codec_delta_checkbox)
         delta_layout.addStretch()
@@ -926,7 +928,11 @@ class MainWindow(QMainWindow):
 
         self.youtube_checkbox.toggled.connect(self.toggle_opus)
         self.aac_checkbox.toggled.connect(self.toggle_aac)
+        self.aac_checkbox.toggled.connect(self.update_preview_card_states)
         self.codec_delta_checkbox.toggled.connect(self.toggle_codec_delta)
+        self.codec_delta_checkbox.toggled.connect(
+            self.update_preview_card_states
+        )
         self.mono_checkbox.toggled.connect(self.toggle_mono_preview)
         self.bass_mono_checkbox.toggled.connect(
             self.toggle_bass_mono_preview
@@ -977,8 +983,27 @@ class MainWindow(QMainWindow):
 
         # Make the transport state obvious before the first Start click.
         self.set_audio_running_state(False)
+        self.update_preview_card_states()
 
         return frame
+
+    def update_preview_card_states(self, _enabled=None):
+        """Give enabled production previews a clear card-level state."""
+        if self.aac_checkbox.isChecked():
+            self.aac_preview_card.setStyleSheet(
+                "background: #092440; border: 2px solid #36e7ff; "
+                "border-radius: 16px;"
+            )
+        else:
+            self.aac_preview_card.setStyleSheet("")
+
+        if self.codec_delta_checkbox.isChecked():
+            self.delta_monitor_card.setStyleSheet(
+                "background: #21113f; border: 2px solid #d361ff; "
+                "border-radius: 16px;"
+            )
+        else:
+            self.delta_monitor_card.setStyleSheet("")
 
     def create_meters(self, layout):
         scroll_area = QScrollArea()
