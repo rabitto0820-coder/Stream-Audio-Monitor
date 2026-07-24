@@ -609,6 +609,7 @@ class MainWindow(QMainWindow):
         self.rate_label.setText(texts["rate"])
         self.buffer_label.setText(texts["buffer"])
         self.opus_label.setText(texts["opus"])
+        self.engage_opus_label.setText("OPUS PREVIEW")
         self.ceiling_label.setText(texts["ceiling"])
         self.target_label.setText(texts["target"])
         self.skin_label.setText(texts["skin"])
@@ -765,11 +766,6 @@ class MainWindow(QMainWindow):
         )
         self.aac_checkbox.setObjectName("accentButton")
         preview_layout.addWidget(self.aac_checkbox)
-        opus_row = QHBoxLayout()
-        opus_row.addWidget(self.opus_label)
-        opus_row.addWidget(self.opus_bitrate_box, 1)
-        preview_layout.addLayout(opus_row)
-        preview_layout.addWidget(self.youtube_checkbox)
         preview_layout.addStretch()
         cards.addWidget(preview_card, 0, 0)
 
@@ -809,6 +805,21 @@ class MainWindow(QMainWindow):
         engage_layout = QVBoxLayout(engage_card)
         engage_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         engage_layout.setSpacing(5)
+        self.engage_opus_label = QLabel("OPUS PREVIEW")
+        self.engage_opus_label.setObjectName("purpleTitle")
+        self.engage_opus_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.youtube_checkbox.setObjectName("accentButton")
+        self.youtube_checkbox.setText("Opus Preview")
+        opus_controls = QHBoxLayout()
+        opus_controls.addWidget(self.opus_label)
+        opus_controls.addWidget(self.opus_bitrate_box)
+        engage_layout.addWidget(
+            self.engage_opus_label, 0, Qt.AlignmentFlag.AlignCenter
+        )
+        engage_layout.addWidget(
+            self.youtube_checkbox, 0, Qt.AlignmentFlag.AlignCenter
+        )
+        engage_layout.addLayout(opus_controls)
         self.start_button.setObjectName("engageButton")
         self.start_button.setFixedSize(300, 300)
         self.stop_button.setObjectName("secondaryButton")
