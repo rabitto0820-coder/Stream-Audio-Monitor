@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from app_info import support_environment_text
+from app_info import APP_NAME, APP_VERSION, support_environment_text
 from audio_state import audio_state
 from aac_exporter import aac_support_error, export_aac_preview
 from file_analyzer import analyze_opus_impact, analyze_wav, compare_wavs
@@ -91,6 +91,8 @@ class MainWindow(QMainWindow):
         self.ready_label.setObjectName("readyLabel")
         self.language_button = QPushButton()
         self.language_button.clicked.connect(self.toggle_language)
+        self.about_button = QPushButton()
+        self.about_button.clicked.connect(self.show_about)
         self.developer_mode_button = QPushButton()
         self.developer_mode_button.clicked.connect(self.toggle_developer_mode)
         self.debug_log_button = QPushButton()
@@ -112,6 +114,7 @@ class MainWindow(QMainWindow):
         title_row.addWidget(self.developer_mode_button)
         title_row.addWidget(self.debug_log_button)
         title_row.addWidget(self.debug_log_placeholder)
+        title_row.addWidget(self.about_button)
         title_row.addWidget(self.language_button)
         layout.addWidget(header_frame)
         layout.addWidget(self.create_settings_panel())
@@ -266,6 +269,9 @@ class MainWindow(QMainWindow):
         self.output_card.setToolTip(
             "SAMで処理した音を聴く出力デバイスです。"
         )
+        self.about_button.setToolTip(
+            "SAMのバージョン、用途、サポート情報を表示します。"
+        )
         self.input_box.setToolTip("音を取り込む入力デバイスを選びます。")
         self.output_box.setToolTip("モニター音を出す出力デバイスを選びます。")
         self.rate_box.setToolTip("音声処理に使うサンプリングレートです。")
@@ -409,6 +415,7 @@ class MainWindow(QMainWindow):
             self.input_card,
             self.engage_card,
             self.output_card,
+            self.about_button,
             self.developer_mode_button,
             self.debug_log_button,
             self.copy_support_button,
@@ -540,6 +547,7 @@ class MainWindow(QMainWindow):
 
         self.title_label.setText(texts["title"])
         self.language_button.setText(texts["language"])
+        self.about_button.setText("ABOUT")
         mode_text = "開発者" if japanese else "Developer"
         mode_state = "ON" if self.developer_mode else "OFF"
         self.developer_mode_button.setText(f"{mode_text}: {mode_state}")
@@ -1234,6 +1242,52 @@ class MainWindow(QMainWindow):
             "Routing guide copied",
             "音の経路をコピーしました",
         )
+
+    def show_about(self):
+        japanese = self.current_language == "ja"
+        title = "SAMについて" if japanese else "About SAM"
+        copy_label = "コピー" if japanese else "Copy"
+        message = (
+            f"{APP_NAME}\n"
+            f"Version {APP_VERSION}\n\n"
+            + (
+                "SAMは、ブラウザやDAWからの音をリアルタイムでモニターし、"
+                "Opus・AACの変化を確認するためのソフトです。\n\n"
+                "サポートが必要な場合は、開発者モードのDebug Logまたは"
+                "エラー画面のCopyを使って情報を送ってください。\n\n"
+                if japanese else
+                "SAM monitors browser and DAW audio in real time and helps "
+                "you hear Opus and AAC codec changes.\n\n"
+                "For support, send the copied Debug Log or error information "
+                "to the developer.\n\n"
+            )
+            + f"FFmpeg: {describe_ffmpeg_source()}"
+        )
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.resize(580, 360)
+        layout = QVBoxLayout(dialog)
+
+        heading = QLabel(f"{APP_NAME}  v{APP_VERSION}")
+        heading.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        layout.addWidget(heading)
+
+        about_text = QPlainTextEdit()
+        about_text.setReadOnly(True)
+        about_text.setPlainText(message)
+        layout.addWidget(about_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        copy_button = buttons.addButton(
+            copy_label, QDialogButtonBox.ButtonRole.ActionRole
+        )
+        copy_button.clicked.connect(
+            lambda _checked=False: QApplication.clipboard().setText(message)
+        )
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
 
     def show_system_check(self):
         rate = self.rate_values[self.rate_box.currentIndex()]
