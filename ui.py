@@ -967,6 +967,7 @@ class MainWindow(QMainWindow):
 
     def create_meters(self, layout):
         scroll_area = QScrollArea()
+        self.meter_scroll_area = scroll_area
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
 
@@ -2886,6 +2887,7 @@ class MainWindow(QMainWindow):
     def update_detail_meter_visibility(self):
         """Keep detailed metering available without crowding production view."""
         show_details = self.developer_mode and not self.codec_focus_enabled
+        self.meter_scroll_area.setVisible(self.developer_mode)
         for widget in self.detail_meter_widgets:
             widget.setVisible(show_details)
 
