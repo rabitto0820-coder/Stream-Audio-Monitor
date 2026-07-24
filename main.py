@@ -85,7 +85,14 @@ def handle_unexpected_error(error_type, error, error_traceback):
         layout = QVBoxLayout(dialog)
         error_text = QPlainTextEdit()
         error_text.setReadOnly(True)
-        error_text.setPlainText("⚠ ERROR / エラー\n\n" + message)
+        error_text.setPlainText(
+            "⚠ ERROR / エラー\n\n"
+            + message
+            + "\n\n────────────────────\n"
+            "Crash report / クラッシュレポート\n"
+            "────────────────────\n\n"
+            + report_text
+        )
         layout.addWidget(error_text)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)

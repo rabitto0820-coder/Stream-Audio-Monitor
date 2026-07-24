@@ -25,8 +25,22 @@ def saved_audio_setup_text(settings):
     """Return the last saved audio setup without exposing unrelated settings."""
     settings = settings if isinstance(settings, dict) else {}
     return (
-        f"Input device: {settings.get('input_device', '(not saved)')}\n"
-        f"Output device: {settings.get('output_device', '(not saved)')}\n"
+        f"Input device: {_device_description(settings.get('input_device'))}\n"
+        f"Output device: {_device_description(settings.get('output_device'))}\n"
         f"Sample rate: {settings.get('samplerate', '(not saved)')}\n"
         f"Buffer: {settings.get('blocksize', '(not saved)')}"
     )
+
+
+def _device_description(device_index):
+    """Show both the saved PortAudio index and its current device name."""
+    if device_index is None:
+        return "(not saved)"
+
+    try:
+        device_index = int(device_index)
+        device = sd.query_devices(device_index)
+        name = device.get("name", "unknown device")
+        return f"{device_index}: {name}"
+    except Exception:
+        return f"{device_index} (not currently available)"
