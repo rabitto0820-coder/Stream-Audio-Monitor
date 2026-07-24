@@ -2722,6 +2722,8 @@ class MainWindow(QMainWindow):
         """Keep advanced processing available only in Developer mode."""
         show_developer_controls = self.developer_mode
         developer_only_widgets = (
+            self.clip_indicator,
+            self.clear_clip_button,
             self.lufs_time_indicator,
             self.normalizer_gain_indicator,
             self.youtube_gain_indicator,
