@@ -248,6 +248,24 @@ class MainWindow(QMainWindow):
 
     def configure_tooltips(self):
         """Keep the compact controls understandable without changing labels."""
+        self.aac_preview_card.setToolTip(
+            "AAC圧縮をリアルタイムで確認します。"
+        )
+        self.delta_monitor_card.setToolTip(
+            "OpusまたはAACで変化した音だけを確認します。"
+        )
+        self.file_tools_card.setToolTip(
+            "WAVの解析・比較・書き出しをまとめて行います。"
+        )
+        self.input_card.setToolTip(
+            "SAMへ入れる音声デバイスと基本設定です。"
+        )
+        self.engage_card.setToolTip(
+            "Opusプレビューを設定し、モニタリングを開始します。"
+        )
+        self.output_card.setToolTip(
+            "SAMで処理した音を聴く出力デバイスです。"
+        )
         self.input_box.setToolTip("音を取り込む入力デバイスを選びます。")
         self.output_box.setToolTip("モニター音を出す出力デバイスを選びます。")
         self.rate_box.setToolTip("音声処理に使うサンプリングレートです。")
@@ -385,6 +403,12 @@ class MainWindow(QMainWindow):
         )
 
         hover_targets = (
+            self.aac_preview_card,
+            self.delta_monitor_card,
+            self.file_tools_card,
+            self.input_card,
+            self.engage_card,
+            self.output_card,
             self.developer_mode_button,
             self.debug_log_button,
             self.copy_support_button,
@@ -789,6 +813,7 @@ class MainWindow(QMainWindow):
             "ANALYZE / EXPORT", "pink",
             "解析・比較・書き出しをまとめて実行"
         )
+        self.file_tools_card = tools_card
         self.file_tools_button.setObjectName("accentButton")
         tools_layout.addStretch()
         tools_layout.addWidget(self.file_tools_button)
@@ -796,6 +821,7 @@ class MainWindow(QMainWindow):
         cards.addWidget(tools_card, 0, 2)
 
         input_card, input_layout = make_card("AUDIO INPUT", "cyan")
+        self.input_card = input_card
         input_layout.addWidget(self.input_label)
         input_layout.addWidget(self.input_box)
         input_options = QGridLayout()
@@ -808,6 +834,7 @@ class MainWindow(QMainWindow):
         cards.addWidget(input_card, 1, 0)
 
         engage_card = QFrame()
+        self.engage_card = engage_card
         engage_card.setObjectName("engageCard")
         engage_layout = QVBoxLayout(engage_card)
         engage_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -840,6 +867,7 @@ class MainWindow(QMainWindow):
         cards.addWidget(engage_card, 1, 1)
 
         output_card, output_layout = make_card("AUDIO OUTPUT", "cyan")
+        self.output_card = output_card
         output_layout.addWidget(self.output_label)
         output_layout.addWidget(self.output_box)
         self.latency_card_label = QLabel("LATENCY  ~ -- ms")
