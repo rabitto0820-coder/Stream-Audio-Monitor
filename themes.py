@@ -151,6 +151,37 @@ def apply_theme(widget, name):
             font-weight: 700;
         }}
 
+        QCheckBox#accentButton {{
+            color: #d8e5ff;
+            background: #0b1730;
+            border: 1px solid #38538a;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-weight: 700;
+        }}
+
+        QCheckBox#accentButton:hover {{
+            border-color: #a05cff;
+            background: #101f42;
+        }}
+
+        QCheckBox#accentButton:checked {{
+            color: #ffffff;
+            background: #30215c;
+            border: 1px solid #d460ff;
+        }}
+
+        QCheckBox#accentButton::indicator {{
+            width: 14px;
+            height: 14px;
+        }}
+
+        QCheckBox#accentButton::indicator:checked {{
+            background: #45e5ff;
+            border: 1px solid #d9fbff;
+            border-radius: 7px;
+        }}
+
         QPushButton#secondaryButton {{
             color: #b9c9f5;
             border-color: #354d82;
